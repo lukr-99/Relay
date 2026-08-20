@@ -91,6 +91,11 @@ Raw ideas captured after seeing Phase 0 on-device. Not yet slotted into phases. 
   `os.macro` verb wired up + an editor UI. `high / med`
 - More action types will follow.
 
+### Reliability (discovered while testing)
+- **App auto-reconnect** — when the agent restarts or the socket drops, the phone stays on the
+  error/pair screen instead of retrying. Add reconnect-with-backoff so the deck comes back on its
+  own (Phase 1 item, but bumped up — it bites during normal use). `high / med`
+
 ### Clip button
 - **How it works:** the button fires an `os.hotkey` chord (currently `Alt+F10`); the agent
   synthesizes that keypress and the user's capture tool (ShadowPlay/**Medal**/etc.) catches it and

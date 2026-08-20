@@ -73,6 +73,18 @@ class DeckClient {
 
         override fun onMessage(webSocket: WebSocket, text: String) {
             val msg = runCatching { DeckJson.parseToJsonElement(text).jsonObject }.getOrNull() ?: return
+
+            // Server-initiated notifications (no id) — e.g. the agent pushing an edited layout live.
+            val method = (msg["method"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull()
+            if (method == "deck.layout") {
+                (msg["params"] as? JsonObject)?.let { params ->
+                    runCatching { DeckJson.decodeFromJsonElement(Layout.serializer(), params) }
+                        .getOrNull()?.let { _layout.value = it }
+                }
+                return
+            }
+
+            // Responses to our requests.
             val id = (msg["id"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull()
             val result = msg["result"] as? JsonObject ?: return
             when (id) {
