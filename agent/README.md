@@ -1,45 +1,66 @@
 # DeckForge Agent (Windows)
 
-The PC-side brain: a **.NET 10** tray app that advertises itself over mDNS, serves a **WSS +
-JSON-RPC 2.0** endpoint, authenticates paired phones, and routes button presses to **providers**
-that actually do things (hotkeys, launch, OBS, MicForge).
+The PC-side brain: a **.NET 10** tray app that serves a **WebSocket + JSON-RPC 2.0** endpoint,
+authenticates paired phones with a bearer token, and routes button presses to **providers** that
+do things (hotkeys, media keys, launch, open URLs — OBS and MicForge next).
 
 > Design: [../ARCHITECTURE.md](../ARCHITECTURE.md) · Wire: [../docs/PROTOCOL.md](../docs/PROTOCOL.md)
 > · Model: [../docs/DATA-MODEL.md](../docs/DATA-MODEL.md) · Security: [../docs/SECURITY.md](../docs/SECURITY.md)
 
-## Planned stack
+## Status — Phase 0 (working)
 
-- **.NET 10**, tray shell (`NotifyIcon` + small WPF/WinForms editor), same pattern as MicForge /
-  DL-FOV-Fixer.
-- **ASP.NET Core minimal hosting (Kestrel)** for the WSS endpoint (and, later, a web config UI).
-- **StreamJsonRpc** for JSON-RPC 2.0 over the WebSocket.
-- **SendInput** via P/Invoke (or `H.InputSimulator`) for hotkeys/media.
-- **Makaretu.Dns** (or `Zeroconf`) for mDNS advertise/browse.
-- **QRCoder** for the pairing QR.
-- **obs-websocket-dotnet** for the OBS provider.
+Verified end to end: a `button.press` from a client fires the mapped action on Windows.
 
-## Planned layout (indicative)
+- **Kestrel WebSocket server** at `/rpc`, bearer-token auth on the handshake (binds all
+  interfaces, no admin/urlacl needed).
+- **JSON-RPC 2.0** dispatch: `session.hello`, `deck.getLayout`, `ping`, `button.press`,
+  `button.hold`.
+- **`os` provider**: `hotkey` (SendInput), `media` keys, `launch`, `open`, `text`.
+- **LayoutStore** seeded from the bundled [default deck](DeckForge.Agent/assets/layout.default.json)
+  into `%AppData%\DeckForge\layout.json`.
+- **Tray** (WinForms) with a **Pairing info…** dialog: host / port / token + a QR (via QRCoder).
+
+Deferred: WSS + cert-fingerprint pinning (Phase 0 is `ws://`), real mDNS advertising (stubbed —
+pair via the tray QR / manual host:port for now), OBS + MicForge providers, state feedback.
+
+## Stack
+
+- **.NET 10**, `net10.0-windows`, WinForms tray shell (MicForge / DL-FOV-Fixer pattern).
+- **Kestrel** (`Microsoft.AspNetCore.App` framework reference) for the WebSocket host.
+- **QRCoder** for the pairing QR. JSON via `System.Text.Json`.
+
+## Layout
 
 ```
 agent/
-  DeckForge.Agent.csproj
-  Program.cs                 host builder, DI, tray bootstrap
-  Server/                    Kestrel WSS, JSON-RPC dispatch, SessionManager
-  Discovery/                 mDNS advertise
-  Pairing/                   token store, cert + fingerprint, QR
-  Providers/                 OsProvider, ObsProvider, MicForgeProvider, ScriptProvider
-  Layout/                    LayoutStore + schema
-  StateHub/                  provider state → button.state
-  Ui/                        tray + layout editor
-  schema/layout.schema.json  JSON Schema for layouts
+  DeckForge.slnx
+  Directory.Build.props           Nullable + ImplicitUsings enable (dotnetlib convention)
+  DeckForge.Agent/
+    Program.cs                    entry point — wires server + providers + tray
+    AppConfig.cs                  %AppData% paths, persisted agent id + token + port
+    Log.cs
+    Layout/                       DeckLayout / Page / ButtonDef / ActionDef + LayoutStore
+    Providers/                    IProvider, OsProvider, NativeInput (P/Invoke), ProviderRegistry
+    Server/                       DeckServer (Kestrel), RpcDispatcher, SessionManager, WsSession
+    Discovery/                    MdnsAdvertiser (stubbed)
+    Pairing/                      LAN IP, pairing URI, QR bitmap
+    TrayApp.cs                    NotifyIcon + pairing dialog
+    ActionRouter.cs               button -> provider dispatch
+    assets/layout.default.json    bundled starter deck
 ```
 
-## Build (once code lands)
+## Build & run
+
+```powershell
+# from the repo root
+.\tools\run-agent.ps1            # build (Debug) + launch the tray agent
+```
+
+or directly:
 
 ```bash
-dotnet build -c Release
-dotnet run   -c Release
-dotnet publish -c Release -r win-x64 --self-contained true
+dotnet build agent/DeckForge.Agent/DeckForge.Agent.csproj -c Debug
+dotnet run   --project agent/DeckForge.Agent
 ```
 
-Status: **spec only** — see [../ROADMAP.md](../ROADMAP.md) Phase 0.
+Right-click the tray icon → **Pairing info…** for the host / port / token to enter on the phone.

@@ -1,42 +1,60 @@
 # DeckForge App (Android)
 
-The phone-side remote: a **Kotlin / Jetpack Compose** app that discovers the PC agent over
-mDNS, pairs by scanning a QR code, and renders the button grid the agent pushes to it. Tapping a
-button sends a `button.press` notification; the agent pushes `button.state` back for live
-feedback.
+The phone-side remote: a **Kotlin / Jetpack Compose** app that connects to the PC agent over a
+**WebSocket** (JSON-RPC 2.0), renders the button grid the agent pushes, and sends
+`button.press` on tap.
 
 > Design: [../ARCHITECTURE.md](../ARCHITECTURE.md) · Wire: [../docs/PROTOCOL.md](../docs/PROTOCOL.md)
 > · Security: [../docs/SECURITY.md](../docs/SECURITY.md)
 
-## Planned stack
+## Status — Phase 0
 
-- **Kotlin + Jetpack Compose** (`LazyVerticalGrid` for the deck).
-- **OkHttp** WebSocket client (JSON-RPC 2.0 over WSS).
-- **NsdManager** (built-in DNS-SD) for discovery.
-- **CameraX + ML Kit Barcode** (or ZXing) for QR pairing.
-- **Android Keystore** for the pairing token; **kotlinx.serialization** for JSON.
-- Foreground service / wake lock to keep the socket alive; haptics + keep-screen-on.
+- **Pair screen** — enter host / port / token (remembered in `SharedPreferences`); the values
+  come from the agent's tray **Pairing info…** dialog.
+- **DeckClient** — OkHttp WebSocket speaking JSON-RPC 2.0; bearer token on the handshake. On
+  connect it says `session.hello`, fetches `deck.getLayout`, and exposes the layout as a flow.
+- **Deck grid** — `LazyVerticalGrid` of buttons (icon + label + color); tap sends `button.press`.
+- Connection state surfaced (Connecting / Connected / rejected-wrong-token).
 
-## Responsibilities (thin client)
+Deferred: NsdManager (mDNS) auto-discovery, QR-scan pairing (CameraX + ML Kit), WSS + cert
+pinning, live `button.state` feedback, multi-page swipe, haptics/keep-awake.
 
-- Discover + pair; store `{host, port, token, fp, id}` securely; pin the TLS fingerprint.
-- Render `deck.layout`; send `button.press` / `button.hold`; apply `button.state` updates.
-- Reconnect with backoff; never queue stale presses.
-- **No action definitions live here** — the phone only knows button IDs (see
-  [../docs/SECURITY.md](../docs/SECURITY.md)).
+## Stack
 
-## Planned layout (indicative)
+Baselined on the workout-tracker / QRingSet reference apps so it reuses cached artifacts:
+AGP 8.5.2 · Kotlin 2.0.21 · Compose BOM 2024.12.01 · OkHttp 4.12 · kotlinx.serialization ·
+coroutines. `minSdk 26`, `compileSdk 35`, JDK 17. Package `com.lukr99.deckforge`.
+
+## Layout
 
 ```
 android/
-  settings.gradle.kts
+  settings.gradle.kts · build.gradle.kts · gradle.properties
+  gradle/libs.versions.toml            version catalog
   app/
     build.gradle.kts
-    src/main/java/…/deckforge/
-      net/         OkHttp WS, JSON-RPC, NSD discovery
-      pairing/     QR scan, keystore token store, cert pinning
-      ui/          Compose grid, pages, button state
-      model/       Layout/Button/Action DTOs (kotlinx.serialization)
+    src/main/AndroidManifest.xml       INTERNET + cleartext (ws:// for Phase 0)
+    src/main/java/com/lukr99/deckforge/
+      MainActivity.kt                  single-activity Compose host
+      net/Rpc.kt                       JSON-RPC builders + Layout DTOs (kotlinx.serialization)
+      net/DeckClient.kt                OkHttp WebSocket client + connection/layout flows
+      settings/PairingStore.kt         host/port/token persistence
+      ui/App.kt                        Pair ⇄ Deck switch
+      ui/DeckViewModel.kt              owns the client + pairing
+      ui/PairScreen.kt · DeckScreen.kt · DeckIcons.kt
+      ui/theme/Theme.kt                dark-first Material3
 ```
 
-Status: **spec only** — see [../ROADMAP.md](../ROADMAP.md) Phase 0.
+## Build & install (USB-tethered phone)
+
+```powershell
+# from the repo root, phone connected with USB debugging authorized
+.\tools\build-and-install.ps1 -Launch
+```
+
+or directly:
+
+```bash
+cd android && ./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```

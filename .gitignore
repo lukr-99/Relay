@@ -27,3 +27,7 @@ certs/
 # ── OS / editor cruft ──────────────────────────────────────
 Thumbs.db
 .DS_Store
+
+# Build logs / kotlin caches
+*.log
+android/.kotlin/
