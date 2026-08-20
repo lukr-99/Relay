@@ -18,6 +18,7 @@ public sealed class DeckServer : IDisposable
 {
     private readonly AppConfig _config;
     private readonly SessionManager _sessions;
+    private readonly LayoutStore _layout;
     private readonly RpcDispatcher _dispatcher;
     private readonly Log _log;
     private WebApplication? _app;
@@ -26,8 +27,17 @@ public sealed class DeckServer : IDisposable
     {
         _config = config;
         _sessions = sessions;
+        _layout = layout;
         _log = log;
         _dispatcher = new RpcDispatcher(config, layout, router, log);
+        _layout.Changed += OnLayoutChanged;
+    }
+
+    private void OnLayoutChanged()
+    {
+        if (_sessions.Count == 0) return;
+        _ = _sessions.BroadcastAsync(RpcDispatcher.LayoutNotification(_layout.Current));
+        _log.Info($"pushed updated layout to {_sessions.Count} phone(s).");
     }
 
     public void Start()

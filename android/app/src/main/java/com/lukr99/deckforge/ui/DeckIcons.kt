@@ -1,6 +1,7 @@
 package com.lukr99.deckforge.ui
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Keyboard
@@ -22,6 +23,7 @@ fun iconFor(name: String?): ImageVector = when (name) {
     "volume_off" -> Icons.Filled.VolumeOff
     "mic_off" -> Icons.Filled.MicOff
     "content_cut" -> Icons.Filled.ContentCut
+    "chat" -> Icons.Filled.Chat
     "edit_note" -> Icons.Filled.EditNote
     "open_in_browser" -> Icons.Filled.OpenInBrowser
     "keyboard" -> Icons.Filled.Keyboard

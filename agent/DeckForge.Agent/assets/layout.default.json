@@ -35,8 +35,8 @@
         },
         {
           "id": "b-clip", "row": 1, "col": 1,
-          "label": "Clip", "icon": "content_cut", "color": "#16a085",
-          "action": { "provider": "os", "verb": "hotkey", "params": { "keys": ["alt", "f10"] } }
+          "label": "Clip (Medal)", "icon": "content_cut", "color": "#16a085",
+          "action": { "provider": "os", "verb": "hotkey", "params": { "keys": ["ctrl", "alt", "g"] } }
         },
         {
           "id": "b-notepad", "row": 1, "col": 2,
@@ -53,6 +53,21 @@
           "id": "b-hello", "row": 2, "col": 0,
           "label": "Type hi", "icon": "keyboard", "color": "#2c3e50",
           "action": { "provider": "os", "verb": "text", "params": { "value": "gg wp" } }
+        },
+        {
+          "id": "b-gg", "row": 2, "col": 1,
+          "label": "GG (chat)", "icon": "chat", "color": "#16a085",
+          "action": {
+            "provider": "core", "verb": "macro",
+            "params": {
+              "gapMs": 60,
+              "steps": [
+                { "provider": "os", "verb": "hotkey", "params": { "keys": ["enter"] } },
+                { "provider": "os", "verb": "text", "params": { "value": "gg wp" } },
+                { "provider": "os", "verb": "hotkey", "params": { "keys": ["enter"] } }
+              ]
+            }
+          }
         }
       ]
     }

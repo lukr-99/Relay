@@ -18,6 +18,11 @@ class PairingStore(context: Context) {
         get() = prefs.getString("token", "") ?: ""
         set(v) = prefs.edit().putString("token", v).apply()
 
+    /** Minimum card edge in dp — drives the adaptive grid (smaller = more/tighter cards). */
+    var cardMinDp: Int
+        get() = prefs.getInt("cardMinDp", 96)
+        set(v) = prefs.edit().putInt("cardMinDp", v).apply()
+
     fun save(host: String, port: Int, token: String) {
         prefs.edit()
             .putString("host", host)

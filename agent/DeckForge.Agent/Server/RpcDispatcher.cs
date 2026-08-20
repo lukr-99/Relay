@@ -75,6 +75,10 @@ public sealed class RpcDispatcher
         }
     }
 
+    /// <summary>Builds a <c>deck.layout</c> notification for pushing an updated layout to phones.</summary>
+    public static string LayoutNotification(DeckLayout layout)
+        => JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "deck.layout", @params = layout }, Wire);
+
     private static string Result(JsonElement? id, object result)
         => JsonSerializer.Serialize(new Envelope { Id = id, Result = result }, Wire);
 

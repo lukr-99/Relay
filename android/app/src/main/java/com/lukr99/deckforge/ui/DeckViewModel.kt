@@ -6,6 +6,9 @@ import androidx.lifecycle.AndroidViewModel
 import com.lukr99.deckforge.net.ConnState
 import com.lukr99.deckforge.net.DeckClient
 import com.lukr99.deckforge.settings.PairingStore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /** Owns the [DeckClient] and the remembered pairing. The UI observes the client's state flows. */
 class DeckViewModel(app: Application) : AndroidViewModel(app) {
@@ -15,6 +18,14 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
     val savedHost get() = store.host
     val savedPort get() = store.port
     val savedToken get() = store.token
+
+    private val _cardMinDp = MutableStateFlow(store.cardMinDp)
+    val cardMinDp: StateFlow<Int> = _cardMinDp.asStateFlow()
+
+    fun setCardMinDp(dp: Int) {
+        store.cardMinDp = dp
+        _cardMinDp.value = dp
+    }
 
     private val deviceName: String =
         listOf(Build.MANUFACTURER, Build.MODEL).filter { it.isNotBlank() }.joinToString(" ").ifBlank { "Android" }

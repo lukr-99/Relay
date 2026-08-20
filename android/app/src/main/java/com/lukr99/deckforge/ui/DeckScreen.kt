@@ -14,10 +14,12 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,11 +36,11 @@ import com.lukr99.deckforge.net.Layout
 fun DeckScreen(
     layout: Layout,
     agentName: String?,
+    cardMinDp: Int,
     onPress: (String) -> Unit,
-    onDisconnect: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val page = layout.pages.firstOrNull { it.id == layout.activePage } ?: layout.pages.firstOrNull()
-    val cols = (page?.grid?.cols ?: layout.grid.cols).coerceAtLeast(1)
     val buttons = page?.buttons?.sortedWith(compareBy({ it.row }, { it.col })) ?: emptyList()
 
     Column(Modifier.fillMaxSize().padding(12.dp)) {
@@ -51,11 +53,14 @@ fun DeckScreen(
                 agentName?.let { "Connected · $it" } ?: "Connected",
                 style = MaterialTheme.typography.titleMedium,
             )
-            TextButton(onClick = onDisconnect) { Text("Disconnect") }
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            }
         }
 
+        // Adaptive columns keep cards near cardMinDp — more/tighter in portrait, fuller in landscape.
         LazyVerticalGrid(
-            columns = GridCells.Fixed(cols),
+            columns = GridCells.Adaptive(minSize = cardMinDp.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize(),
