@@ -1,0 +1,29 @@
+# ── .NET agent ─────────────────────────────────────────────
+bin/
+obj/
+*.user
+.vs/
+publish/
+
+# ── Android app ────────────────────────────────────────────
+.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/local.properties
+android/captures/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# ── Runtime / local config (never commit secrets or pairings) ──
+*.local.json
+deckforge.state.json
+pairings.json
+certs/
+*.pfx
+
+# ── OS / editor cruft ──────────────────────────────────────
+Thumbs.db
+.DS_Store
