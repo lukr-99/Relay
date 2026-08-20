@@ -1,4 +1,4 @@
-# DeckForge — Data Model
+# Relay — Data Model
 
 The **layout** is the PC-owned description of what the deck shows and what each button does. It
 is stored as JSON, validated against **JSON Schema (2020-12)** on load, and pushed to phones via

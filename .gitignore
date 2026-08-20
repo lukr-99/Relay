@@ -19,7 +19,7 @@ android/captures/
 
 # ── Runtime / local config (never commit secrets or pairings) ──
 *.local.json
-deckforge.state.json
+relay.state.json
 pairings.json
 certs/
 *.pfx

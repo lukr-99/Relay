@@ -1,0 +1,59 @@
+using System.Windows;
+using Relay.Agent.Discovery;
+using Relay.Agent.Layout;
+using Relay.Agent.Providers;
+using Relay.Agent.Server;
+
+namespace Relay.Agent;
+
+public partial class App : Application
+{
+    public static bool IsQuitting { get; private set; }
+
+    private AppServices? _svc;
+    private TrayIcon? _tray;
+    private MainWindow? _main;
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        var config = AppConfig.Load();
+        var log = new Log(config.LogPath);
+        log.Info($"Relay agent 0.2.0 starting — id={config.AgentId} port={config.Port}");
+
+        var layout = new LayoutStore(config, log);
+        var providers = new ProviderRegistry(log);
+        var router = new ActionRouter(providers, layout, log);
+        var sessions = new SessionManager();
+        var server = new DeckServer(config, layout, router, sessions, log);
+        server.Start();
+        var mdns = new MdnsAdvertiser(config, log);
+        mdns.Start();
+
+        _svc = new AppServices
+        {
+            Config = config, Log = log, Layout = layout, Providers = providers,
+            Router = router, Sessions = sessions, Server = server, Mdns = mdns,
+        };
+
+        _tray = new TrayIcon(_svc, ShowMain, QuitApp);
+        ShowMain();
+    }
+
+    private void ShowMain()
+    {
+        _main ??= new MainWindow(_svc!);
+        _main.Show();
+        if (_main.WindowState == WindowState.Minimized) _main.WindowState = WindowState.Normal;
+        _main.Activate();
+    }
+
+    private void QuitApp()
+    {
+        IsQuitting = true;
+        try { _svc?.Server.Dispose(); _svc?.Mdns.Dispose(); } catch { }
+        _tray?.Dispose();
+        Shutdown();
+    }
+}

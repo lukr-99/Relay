@@ -1,4 +1,4 @@
-# DeckForge — Roadmap
+# Relay — Roadmap
 
 Phased plan from "does the loop feel good?" to a daily-driver deck. Each item is tagged
 **impact / effort** (low・med・high). Nothing here is committed; it's a menu ordered roughly by
@@ -8,10 +8,10 @@ bang-for-buck. Standards and integrations are specced in [docs/](docs/).
 
 Get one real button press from phone to PC with acceptable latency, over the real transport.
 
-- **Agent: WSS server + JSON-RPC dispatch** (Kestrel, `deckforge.v1` subprotocol). `high / med`
+- **Agent: WSS server + JSON-RPC dispatch** (Kestrel, `relay.v1` subprotocol). `high / med`
 - **Agent: `os` provider — `hotkey`** via `SendInput`. `high / low`
 - **Agent: QR pairing + bearer-token auth + cert pinning.** `high / med`
-- **Agent: mDNS advertise** (`_deckforge._tcp`). `med / low`
+- **Agent: mDNS advertise** (`_relay._tcp`). `med / low`
 - **App: NSD discovery + WSS connect + QR scan pairing.** `high / med`
 - **App: single-page Compose grid, static layout, fire `button.press`.** `high / med`
 - **Agent: minimal tray shell + a hard-coded layout file.** `med / low`

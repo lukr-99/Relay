@@ -1,4 +1,4 @@
-# DeckForge
+# Relay
 
 Turn an old Android phone into a **Stream Deck** for your Windows PC. A grid of customizable
 buttons on the phone fires macros on the PC — hotkeys, launch apps, media control, text
@@ -25,7 +25,7 @@ cloud, no account, and nothing proprietary on the wire.
 - **Live feedback.** Buttons reflect real state — mic muted glows red, the active OBS scene and
   MicForge preset are highlighted, a button can show a live level meter.
 - **Interop in, too.** The agent can also be driven by **OSC** and **virtual MIDI**, so
-  TouchOSC layouts and MIDI pad controllers work without the DeckForge app.
+  TouchOSC layouts and MIDI pad controllers work without the Relay app.
 - **Secure by construction.** Pair once by scanning a QR code (encodes `wss://host:port` +
   token + cert fingerprint). Bearer token on every connection, TLS pinned at pairing, LAN-only.
 
@@ -49,7 +49,7 @@ cloud, no account, and nothing proprietary on the wire.
 ## Repository layout
 
 ```
-DeckForge/
+Relay/
   README.md            you are here
   ARCHITECTURE.md      components, provider model, threading, discovery
   ROADMAP.md           phased plan (v0 → v3), impact/effort tagged

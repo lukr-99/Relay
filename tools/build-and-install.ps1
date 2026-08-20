@@ -1,5 +1,5 @@
 <#
-  build-and-install.ps1 — build the DeckForge Android app and install it on a USB-tethered phone
+  build-and-install.ps1 — build the Relay Android app and install it on a USB-tethered phone
   (USB debugging authorized). Requires JDK 17+ and the Android SDK (ANDROID_HOME set or
   android/local.properties present). The Gradle wrapper fetches Gradle itself.
 
@@ -27,6 +27,6 @@ if ($LASTEXITCODE -ne 0) { throw "Install failed" }
 Write-Host "Installed." -ForegroundColor Green
 
 if ($Launch) {
-    & $adb shell monkey -p com.lukr99.deckforge -c android.intent.category.LAUNCHER 1 | Out-Null
-    Write-Host "Launched com.lukr99.deckforge." -ForegroundColor Green
+    & $adb shell monkey -p com.lukr99.relay -c android.intent.category.LAUNCHER 1 | Out-Null
+    Write-Host "Launched com.lukr99.relay." -ForegroundColor Green
 }

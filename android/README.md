@@ -1,4 +1,4 @@
-# DeckForge App (Android)
+# Relay App (Android)
 
 The phone-side remote: a **Kotlin / Jetpack Compose** app that connects to the PC agent over a
 **WebSocket** (JSON-RPC 2.0), renders the button grid the agent pushes, and sends
@@ -23,7 +23,7 @@ pinning, live `button.state` feedback, multi-page swipe, haptics/keep-awake.
 
 Baselined on the workout-tracker / QRingSet reference apps so it reuses cached artifacts:
 AGP 8.5.2 · Kotlin 2.0.21 · Compose BOM 2024.12.01 · OkHttp 4.12 · kotlinx.serialization ·
-coroutines. `minSdk 26`, `compileSdk 35`, JDK 17. Package `com.lukr99.deckforge`.
+coroutines. `minSdk 26`, `compileSdk 35`, JDK 17. Package `com.lukr99.relay`.
 
 ## Layout
 
@@ -34,7 +34,7 @@ android/
   app/
     build.gradle.kts
     src/main/AndroidManifest.xml       INTERNET + cleartext (ws:// for Phase 0)
-    src/main/java/com/lukr99/deckforge/
+    src/main/java/com/lukr99/relay/
       MainActivity.kt                  single-activity Compose host
       net/Rpc.kt                       JSON-RPC builders + Layout DTOs (kotlinx.serialization)
       net/DeckClient.kt                OkHttp WebSocket client + connection/layout flows

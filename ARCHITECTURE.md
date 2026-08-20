@@ -1,6 +1,6 @@
-# DeckForge — Architecture
+# Relay — Architecture
 
-DeckForge turns an Android phone into a control surface for a Windows PC. The phone shows a
+Relay turns an Android phone into a control surface for a Windows PC. The phone shows a
 grid of buttons; tapping one sends a message to a Windows tray **agent**, which looks the
 button up and executes its action through a **provider**. State flows back so the phone can
 reflect reality (mute lit, active scene highlighted).
@@ -25,7 +25,7 @@ Everything external is an **open standard** — see [docs/STANDARDS.md](docs/STA
 ```
                           Windows tray agent (.NET)
   ┌───────────────────────────────────────────────────────────────────────────┐
-  │  DiscoveryService      advertise _deckforge._tcp via mDNS (DNS-SD)          │
+  │  DiscoveryService      advertise _relay._tcp via mDNS (DNS-SD)          │
   │  PairingService        QR generation, token store, TLS cert + fingerprint   │
   │  WsServer (Kestrel)    WSS endpoint, bearer-token auth, JSON-RPC dispatch   │
   │  SessionManager        connected phones, per-session send/subscribe         │
@@ -72,10 +72,10 @@ one button — mic mute goes red, the live OBS scene lights up, a button can sho
 
 ## Discovery & pairing (happy path)
 
-1. Agent starts → generates a self-signed cert (once), advertises `_deckforge._tcp.local`
+1. Agent starts → generates a self-signed cert (once), advertises `_relay._tcp.local`
    with TXT `v=1; id=<uuid>; name=<PC name>`.
 2. User opens the agent's **Pair** window → it shows a QR encoding
-   `deckforge://pair?host=<ip>&port=<p>&token=<t>&fp=<sha256-of-cert>`.
+   `relay://pair?host=<ip>&port=<p>&token=<t>&fp=<sha256-of-cert>`.
 3. Phone scans → stores `{host, port, token, fp}`, opens `wss://host:port` pinning `fp`,
    sends `Authorization: Bearer <token>` on the handshake.
 4. Agent validates token + pins the same session → sends the current `layout`. Done.

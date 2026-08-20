@@ -1,6 +1,6 @@
-# DeckForge — Wire Protocol
+# Relay — Wire Protocol
 
-DeckForge speaks **JSON-RPC 2.0** over a single **WebSocket** (RFC 6455) connection, secured
+Relay speaks **JSON-RPC 2.0** over a single **WebSocket** (RFC 6455) connection, secured
 with **WSS** and a **bearer token**. Discovery is **DNS-SD/mDNS**. This document is the
 authoritative message catalog. See [STANDARDS.md](STANDARDS.md) for the rationale and
 [DATA-MODEL.md](DATA-MODEL.md) for the payload shapes.
@@ -10,7 +10,7 @@ authoritative message catalog. See [STANDARDS.md](STANDARDS.md) for the rational
 The agent advertises:
 
 ```
-Service:  _deckforge._tcp.local
+Service:  _relay._tcp.local
 Port:     <wss port, e.g. 8731>
 TXT:      v=1                     protocol/record version
           id=<uuid>              stable agent id (survives IP changes)
@@ -18,7 +18,7 @@ TXT:      v=1                     protocol/record version
           fp=<sha256>            cert fingerprint (also in the QR; lets reconnect verify TLS)
 ```
 
-The phone browses `_deckforge._tcp` to list PCs and to re-find a paired agent by `id` after its
+The phone browses `_relay._tcp` to list PCs and to re-find a paired agent by `id` after its
 IP changes. First-time pairing does **not** rely on mDNS — the QR carries the IP directly.
 
 ## 2. Connect & authenticate
@@ -29,11 +29,11 @@ The phone opens `wss://<host>:<port>/rpc` and MUST send the token on the WebSock
 GET /rpc HTTP/1.1
 Upgrade: websocket
 Authorization: Bearer <token>
-Sec-WebSocket-Protocol: deckforge.v1
+Sec-WebSocket-Protocol: relay.v1
 ```
 
 - Invalid/absent token → handshake rejected with **401** (connection never upgrades).
-- The agent pins the negotiated subprotocol `deckforge.v1` for versioning.
+- The agent pins the negotiated subprotocol `relay.v1` for versioning.
 - TLS: the phone pins the cert **fingerprint** captured at pairing (trust-on-first-use). A
   mismatch aborts before any RPC. See [SECURITY.md](SECURITY.md).
 
@@ -80,7 +80,7 @@ Sent as **notifications** from the agent:
 
 ## 6. Error codes
 
-Standard JSON-RPC ranges plus a DeckForge block:
+Standard JSON-RPC ranges plus a Relay block:
 
 | Code | Meaning |
 |---|---|
@@ -100,5 +100,5 @@ Standard JSON-RPC ranges plus a DeckForge block:
 
 ## 8. Versioning
 
-The WS subprotocol (`deckforge.v1`) is the version gate. Additive fields don't bump it;
-breaking changes ship `deckforge.v2` and the agent may advertise multiple.
+The WS subprotocol (`relay.v1`) is the version gate. Additive fields don't bump it;
+breaking changes ship `relay.v2` and the agent may advertise multiple.

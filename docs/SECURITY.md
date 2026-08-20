@@ -1,6 +1,6 @@
-# DeckForge — Security & Pairing
+# Relay — Security & Pairing
 
-DeckForge lets a phone **press keys and run actions on your PC**. That power demands the network
+Relay lets a phone **press keys and run actions on your PC**. That power demands the network
 side be locked down. The model is intentionally small: **LAN-only, TLS with a pinned
 fingerprint, and a bearer token minted at pairing.** No cloud, no account.
 
@@ -49,7 +49,7 @@ fingerprint, and a bearer token minted at pairing.** No cloud, no account.
 ### 5. Pairing flow (details)
 
 ```
-deckforge://pair?host=192.168.1.20&port=8731&token=<b64url>&fp=<sha256-hex>&id=<uuid>
+relay://pair?host=192.168.1.20&port=8731&token=<b64url>&fp=<sha256-hex>&id=<uuid>
 ```
 
 1. Agent → shows QR (above) in the Pair window. Token is single-use for pairing and rotates if

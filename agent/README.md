@@ -1,4 +1,4 @@
-# DeckForge Agent (Windows)
+# Relay Agent (Windows)
 
 The PC-side brain: a **.NET 10** tray app that serves a **WebSocket + JSON-RPC 2.0** endpoint,
 authenticates paired phones with a bearer token, and routes button presses to **providers** that
@@ -16,8 +16,8 @@ Verified end to end: a `button.press` from a client fires the mapped action on W
 - **JSON-RPC 2.0** dispatch: `session.hello`, `deck.getLayout`, `ping`, `button.press`,
   `button.hold`.
 - **`os` provider**: `hotkey` (SendInput), `media` keys, `launch`, `open`, `text`.
-- **LayoutStore** seeded from the bundled [default deck](DeckForge.Agent/assets/layout.default.json)
-  into `%AppData%\DeckForge\layout.json`.
+- **LayoutStore** seeded from the bundled [default deck](Relay.Agent/assets/layout.default.json)
+  into `%AppData%\Relay\layout.json`.
 - **Tray** (WinForms) with a **Pairing info…** dialog: host / port / token + a QR (via QRCoder).
 
 Deferred: WSS + cert-fingerprint pinning (Phase 0 is `ws://`), real mDNS advertising (stubbed —
@@ -33,9 +33,9 @@ pair via the tray QR / manual host:port for now), OBS + MicForge providers, stat
 
 ```
 agent/
-  DeckForge.slnx
+  Relay.slnx
   Directory.Build.props           Nullable + ImplicitUsings enable (dotnetlib convention)
-  DeckForge.Agent/
+  Relay.Agent/
     Program.cs                    entry point — wires server + providers + tray
     AppConfig.cs                  %AppData% paths, persisted agent id + token + port
     Log.cs
@@ -59,8 +59,8 @@ agent/
 or directly:
 
 ```bash
-dotnet build agent/DeckForge.Agent/DeckForge.Agent.csproj -c Debug
-dotnet run   --project agent/DeckForge.Agent
+dotnet build agent/Relay.Agent/Relay.Agent.csproj -c Debug
+dotnet run   --project agent/Relay.Agent
 ```
 
 Right-click the tray icon → **Pairing info…** for the host / port / token to enter on the phone.

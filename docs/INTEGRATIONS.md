@@ -1,4 +1,4 @@
-# DeckForge — Integrations
+# Relay — Integrations
 
 Integrations are **providers** in the agent (see [ARCHITECTURE.md](../ARCHITECTURE.md#provider-model)).
 Each adapts an external target to the same `IProvider` contract: a button's action names a
@@ -25,7 +25,7 @@ obs-websocket server in OBS and pastes its password into the agent's OBS setting
 agent config, never in the pushed layout). Verbs map to obs-websocket requests: `setScene`,
 `toggleSource`, `toggleMute`, stream/record control, and a `raw` escape hatch. State events
 (`CurrentProgramSceneChanged`, `InputMuteStateChanged`) drive button feedback so the active
-scene / muted source light up. Nothing here is reinvented — DeckForge just speaks OBS's own
+scene / muted source light up. Nothing here is reinvented — Relay just speaks OBS's own
 protocol.
 
 ---
@@ -36,7 +36,7 @@ Goal: a deck button toggles mute, switches a preset, or flips a DSP stage in
 [MicForge](https://github.com/lukr-99) **with live feedback** — the Mute button glows red when
 muted, the active preset button is highlighted, a button can show the live input level.
 
-This is delivered in two phases so DeckForge is useful **before** any MicForge change, then
+This is delivered in two phases so Relay is useful **before** any MicForge change, then
 great **after** a small addition to MicForge.
 
 ### Phase 0 — zero MicForge changes (works today)
@@ -52,7 +52,7 @@ mute hotkey; a "PTT" button uses `holdAction`.
 ### Phase 1 — MicForge exposes the Deck Control Contract
 
 MicForge adds a small **control server** implementing the [Deck Control Contract](#deck-control-contract)
-below. DeckForge's `MicForgeProvider` discovers it over mDNS and becomes a client. Now:
+below. Relay's `MicForgeProvider` discovers it over mDNS and becomes a client. Now:
 
 - **Real toggle + feedback:** `mic.toggleMute` returns/pushes `muted`, so the button reflects
   truth even when muted from MicForge's own UI or hotkey.
@@ -69,7 +69,7 @@ below. DeckForge's `MicForgeProvider` discovers it over mDNS and becomes a clien
 
 ### MicForge-side work (tracked in the MicForge repo)
 
-A minimal, self-contained addition — it reuses the same standards DeckForge already uses, so
+A minimal, self-contained addition — it reuses the same standards Relay already uses, so
 there's little new surface:
 
 1. Host a JSON-RPC-over-WSS endpoint (Kestrel, same as the agent) — or, simplest first cut, a
@@ -87,7 +87,7 @@ there's little new surface:
 
 A tiny internal contract any of your apps can implement to become deck-controllable. Same
 transport as everything else (JSON-RPC 2.0 / WebSocket / mDNS). It is the **only** protocol
-DeckForge defines itself — see [STANDARDS.md](STANDARDS.md#the-one-internal-contract).
+Relay defines itself — see [STANDARDS.md](STANDARDS.md#the-one-internal-contract).
 
 **Discovery:** advertise `_deckctl._tcp.local`, TXT `app=<name>; v=1`.
 
@@ -111,7 +111,7 @@ DeckForge defines itself — see [STANDARDS.md](STANDARDS.md#the-one-internal-co
 | `preset.changed` | `{ preset }` |
 | `level` | `{ inputLevel }` (throttled, for meters) |
 
-DeckForge maps these onto the `micforge` provider verbs and `StateBinding.watch` keys in
+Relay maps these onto the `micforge` provider verbs and `StateBinding.watch` keys in
 [DATA-MODEL.md](DATA-MODEL.md). Future tools (e.g. a game-config tool, an aim-trainer HUD) can
 implement the same contract to appear as new providers with no protocol changes.
 
@@ -119,10 +119,10 @@ implement the same contract to appear as new providers with no protocol changes.
 
 ## OSC / MIDI interop (inbound)
 
-So existing control surfaces work without the DeckForge app:
+So existing control surfaces work without the Relay app:
 
 - **OSC** (Open Sound Control 1.0): the agent listens on a UDP port; OSC addresses
-  (`/deckforge/press/<buttonId>` or user-mapped addresses) become synthetic `button.press`.
+  (`/relay/press/<buttonId>` or user-mapped addresses) become synthetic `button.press`.
   Drives from TouchOSC, etc.
 - **MIDI**: the agent opens a virtual MIDI input; Note-On / CC messages map to button presses
   via a small mapping table. Any hardware pad or MIDI app can trigger actions.

@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "DeckForge"
+rootProject.name = "Relay"
 include(":app")

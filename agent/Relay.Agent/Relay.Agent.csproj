@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Relay.Agent</RootNamespace>
+    <AssemblyName>Relay.Agent</AssemblyName>
+    <Version>0.2.0</Version>
+    <Product>Relay</Product>
+    <Description>Relay agent — turns an Android phone into a Stream Deck for Windows</Description>
+  </PropertyGroup>
+
+  <!-- Kestrel for the WebSocket server (bundled with the .NET SDK; no admin/urlacl needed). -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+  </ItemGroup>
+
+  <!-- This is a WPF app that also uses WinForms only for the tray NotifyIcon. Drop the WinForms
+       global usings so System.Windows.* (WPF) types win; the two files that need WinForms/Drawing
+       import those namespaces explicitly. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="assets\layout.default.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

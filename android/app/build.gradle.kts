@@ -6,13 +6,13 @@ plugins {
 }
 
 android {
-    namespace = "com.lukr99.deckforge"
+    namespace = "com.lukr99.relay"
     compileSdk = 35
     // Match the SDK's installed build-tools (34/35 present, not 36) — same pin as workout-tracker.
     buildToolsVersion = "35.0.0"
 
     defaultConfig {
-        applicationId = "com.lukr99.deckforge"
+        applicationId = "com.lukr99.relay"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
