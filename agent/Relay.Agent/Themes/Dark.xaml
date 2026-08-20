@@ -119,9 +119,11 @@
                             <ToggleButton.Template>
                                 <ControlTemplate TargetType="ToggleButton">
                                     <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource Border}"
-                                            BorderThickness="1" CornerRadius="6" Padding="8,6">
+                                            BorderThickness="1" CornerRadius="6" Padding="8,6"
+                                            TextElement.Foreground="{StaticResource Text}">
                                         <Grid>
                                             <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                              TextElement.Foreground="{StaticResource Text}"
                                                               Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"/>
                                             <Path HorizontalAlignment="Right" VerticalAlignment="Center" Data="M0,0 L8,0 L4,5 Z"
                                                   Fill="{StaticResource TextMuted}"/>

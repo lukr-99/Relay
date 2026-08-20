@@ -77,8 +77,8 @@ public partial class DeckEditorView : UserControl
             CornerRadius = new CornerRadius(14),
             AllowDrop = true,
             Tag = (row, col),
-            MinWidth = 84,
-            MinHeight = 84,
+            Width = 104,
+            Height = 104,
         };
         cell.Drop += Cell_Drop;
         cell.DragOver += (_, e) => { e.Effects = DragDropEffects.Move; e.Handled = true; };
@@ -343,7 +343,28 @@ public partial class DeckEditorView : UserControl
     private void Grid_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_loading) return;
+        ReflowOutOfBounds();
         RebuildGrid();
+    }
+
+    /// <summary>After the grid shrinks, relocate any button that now falls outside it into a free cell.</summary>
+    private void ReflowOutOfBounds()
+    {
+        int cols = ColsBox.SelectedItem is int c ? c : 4;
+        int rows = RowsBox.SelectedItem is int r ? r : 3;
+        foreach (var b in _page.Buttons.Where(x => x.Row >= rows || x.Col >= cols).ToList())
+        {
+            var free = FirstFree(cols, rows);
+            if (free is { } cell) { b.Row = cell.Item1; b.Col = cell.Item2; }
+        }
+    }
+
+    private (int, int)? FirstFree(int cols, int rows)
+    {
+        for (int r = 0; r < rows; r++)
+        for (int c = 0; c < cols; c++)
+            if (ButtonAt(r, c) is null) return (r, c);
+        return null;
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
