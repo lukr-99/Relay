@@ -1,8 +1,14 @@
 package com.lukr99.relay.net
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
@@ -13,6 +19,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
+import kotlin.math.min
 
 sealed interface ConnState {
     data object Disconnected : ConnState
@@ -22,17 +29,29 @@ sealed interface ConnState {
 }
 
 /**
- * OkHttp WebSocket client speaking JSON-RPC 2.0 to the Relay agent. Bearer token is sent on the
- * handshake (Authorization header). On connect it says hello, fetches the layout, and exposes it.
+ * OkHttp WebSocket client speaking JSON-RPC 2.0 to the Relay agent. Bearer token on the handshake.
+ * Auto-reconnects with backoff when the socket drops (e.g. the agent restarts), so the deck comes
+ * back on its own without re-pairing.
  */
 class DeckClient {
     private val http = OkHttpClient.Builder()
         .pingInterval(20, TimeUnit.SECONDS)
         .build()
 
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     private var socket: WebSocket? = null
-    private var helloId = 1
-    private var layoutId = 2
+    private var reconnectJob: Job? = null
+    private var wantConnected = false
+    private var attempt = 0
+
+    private var host = ""
+    private var port = 8731
+    private var token = ""
+    private var deviceName = "Android"
+
+    private val helloId = 1
+    private val layoutId = 2
 
     private val _state = MutableStateFlow<ConnState>(ConnState.Disconnected)
     val state: StateFlow<ConnState> = _state.asStateFlow()
@@ -44,16 +63,26 @@ class DeckClient {
     val agentName: StateFlow<String?> = _agentName.asStateFlow()
 
     fun connect(host: String, port: Int, token: String, deviceName: String) {
-        disconnect()
+        this.host = host; this.port = port; this.token = token; this.deviceName = deviceName
+        wantConnected = true
+        attempt = 0
+        reconnectJob?.cancel()
+        open()
+    }
+
+    private fun open() {
+        socket?.cancel()
         _state.value = ConnState.Connecting
         val request = Request.Builder()
             .url("ws://$host:$port/rpc")
             .header("Authorization", "Bearer $token")
             .build()
-        socket = http.newWebSocket(request, Listener(deviceName))
+        socket = http.newWebSocket(request, Listener())
     }
 
     fun disconnect() {
+        wantConnected = false
+        reconnectJob?.cancel()
         socket?.close(1000, "bye")
         socket = null
         _state.value = ConnState.Disconnected
@@ -64,8 +93,20 @@ class DeckClient {
     fun holdStart(buttonId: String) { socket?.send(Rpc.hold(buttonId, "start")) }
     fun holdEnd(buttonId: String) { socket?.send(Rpc.hold(buttonId, "end")) }
 
-    private inner class Listener(val deviceName: String) : WebSocketListener() {
+    private fun scheduleReconnect() {
+        if (!wantConnected || reconnectJob?.isActive == true) return
+        attempt++
+        val delayMs = min(30_000L, 1_000L * (1L shl min(attempt, 5)))  // 2s,4s,8s,16s,32s→cap 30s
+        reconnectJob = scope.launch {
+            _state.value = ConnState.Connecting
+            delay(delayMs)
+            if (wantConnected) open()
+        }
+    }
+
+    private inner class Listener : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
+            attempt = 0
             _state.value = ConnState.Connected
             webSocket.send(Rpc.hello(helloId, deviceName, "android"))
             webSocket.send(Rpc.getLayout(layoutId))
@@ -84,7 +125,6 @@ class DeckClient {
                 return
             }
 
-            // Responses to our requests.
             val id = (msg["id"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull()
             val result = msg["result"] as? JsonObject ?: return
             when (id) {
@@ -97,14 +137,17 @@ class DeckClient {
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            val code = response?.code
-            _state.value = ConnState.Failed(
-                if (code == 401) "Rejected: wrong token" else (t.message ?: "connection failed")
-            )
+            if (response?.code == 401) {
+                wantConnected = false
+                _state.value = ConnState.Failed("Rejected: wrong token")
+                return
+            }
+            if (wantConnected) scheduleReconnect()
+            else _state.value = ConnState.Failed(t.message ?: "connection failed")
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            if (_state.value is ConnState.Connected) _state.value = ConnState.Disconnected
+            if (wantConnected) scheduleReconnect()
         }
     }
 }
