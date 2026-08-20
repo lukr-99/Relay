@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <Authors>lukr-99</Authors>
+    <Company>lukr-99</Company>
+    <Product>DeckForge</Product>
+  </PropertyGroup>
+</Project>

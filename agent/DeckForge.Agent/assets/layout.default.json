@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "grid": { "cols": 4, "rows": 3 },
+  "activePage": "p-main",
+  "pages": [
+    {
+      "id": "p-main",
+      "name": "Main",
+      "buttons": [
+        {
+          "id": "b-playpause", "row": 0, "col": 0,
+          "label": "Play / Pause", "icon": "play_pause", "color": "#2c3e50",
+          "action": { "provider": "os", "verb": "media", "params": { "cmd": "playpause" } }
+        },
+        {
+          "id": "b-prev", "row": 0, "col": 1,
+          "label": "Prev", "icon": "skip_previous", "color": "#2c3e50",
+          "action": { "provider": "os", "verb": "media", "params": { "cmd": "prev" } }
+        },
+        {
+          "id": "b-next", "row": 0, "col": 2,
+          "label": "Next", "icon": "skip_next", "color": "#2c3e50",
+          "action": { "provider": "os", "verb": "media", "params": { "cmd": "next" } }
+        },
+        {
+          "id": "b-mute", "row": 0, "col": 3,
+          "label": "Vol Mute", "icon": "volume_off", "color": "#c0392b",
+          "action": { "provider": "os", "verb": "media", "params": { "cmd": "volmute" } }
+        },
+
+        {
+          "id": "b-micmute", "row": 1, "col": 0,
+          "label": "Mic Mute", "icon": "mic_off", "color": "#8e44ad",
+          "action": { "provider": "os", "verb": "hotkey", "params": { "keys": ["ctrl", "shift", "m"] } }
+        },
+        {
+          "id": "b-clip", "row": 1, "col": 1,
+          "label": "Clip", "icon": "content_cut", "color": "#16a085",
+          "action": { "provider": "os", "verb": "hotkey", "params": { "keys": ["alt", "f10"] } }
+        },
+        {
+          "id": "b-notepad", "row": 1, "col": 2,
+          "label": "Notepad", "icon": "edit_note", "color": "#2c3e50",
+          "action": { "provider": "os", "verb": "launch", "params": { "path": "notepad.exe" } }
+        },
+        {
+          "id": "b-github", "row": 1, "col": 3,
+          "label": "GitHub", "icon": "open_in_browser", "color": "#2c3e50",
+          "action": { "provider": "os", "verb": "open", "params": { "url": "https://github.com/lukr-99" } }
+        },
+
+        {
+          "id": "b-hello", "row": 2, "col": 0,
+          "label": "Type hi", "icon": "keyboard", "color": "#2c3e50",
+          "action": { "provider": "os", "verb": "text", "params": { "value": "gg wp" } }
+        }
+      ]
+    }
+  ]
+}
