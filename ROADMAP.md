@@ -62,3 +62,39 @@ instant.
 - **MicForge:** add the Deck Control Contract server (see
   [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md#micforge)). Loopback `ws://127.0.0.1` first cut is
   fine since agent + MicForge share the PC.
+
+## Idea backlog — user dump (2026-08-20)
+
+Raw ideas captured after seeing Phase 0 on-device. Not yet slotted into phases. More to come.
+
+### Visuals & layout
+- **Keep the current look** — the user likes it; don't regress the card style.
+- **Portrait mode:** square cards are *too big* when the phone is vertical. Explore responsive
+  sizing — `GridCells.Adaptive(minCardSize)` so more/smaller cards fit, and/or a separate column
+  count per orientation, and/or a user-set card size. Fill the screen instead of a few huge
+  squares. `high / med`
+- **Custom layouting:** user-defined grid (rows × cols), which buttons appear and where, and card
+  size. Possibly independent layouts per orientation. `high / high`
+
+### Settings
+- A real **Settings menu/screen** in the app (gear entry). Home for: layout config,
+  connection/pairing, orientation prefs, and the button/macro editor below. `high / med`
+
+### Button & macro editor ("creation mode")
+- On-device (and/or agent-side) editor to **create/edit buttons** without hand-editing JSON.
+  `high / high`
+- **Custom text snippets** beyond the demo "type hi" — make and save your own. `med / med`
+- **In-game chat macro:** typing in a game needs opening chat first. Model as a `macro`:
+  `[open-chat key: Enter / Alt+Enter / T / Y]` → (small delay) → `type message` →
+  `[send: Enter]`. Make the open-chat key, the message, and the send key configurable, with
+  per-game presets. Already expressible via the `macro` action in the data model — needs the
+  `os.macro` verb wired up + an editor UI. `high / med`
+- More action types will follow.
+
+### Clip button
+- **How it works:** the button fires an `os.hotkey` chord (currently `Alt+F10`); the agent
+  synthesizes that keypress and the user's capture tool (ShadowPlay/**Medal**/etc.) catches it and
+  saves the clip. The deck doesn't record — it just presses the capture tool's hotkey.
+- **TODO:** make the clip hotkey configurable to the user's tool. User uses **Medal** (default
+  "Clip That" = `Ctrl+Alt+G`) → offer a preset. Note the fullscreen-exclusive / run-as-admin
+  caveat. `med / low`
