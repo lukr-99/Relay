@@ -28,7 +28,7 @@ internal static class Program
         mdns.Start();
 
         ApplicationConfiguration.Initialize();
-        using var tray = new TrayApp(config, sessions, log);
+        using var tray = new TrayApp(config, sessions, layout, log);
 
         Application.ApplicationExit += (_, _) =>
         {

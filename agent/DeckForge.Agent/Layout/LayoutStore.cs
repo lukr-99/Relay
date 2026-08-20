@@ -17,11 +17,29 @@ public sealed class LayoutStore : IDisposable
     private readonly Log _log;
     private FileSystemWatcher? _watcher;
     private DateTime _lastReload = DateTime.MinValue;
+    private DateTime _suppressUntil = DateTime.MinValue;
 
     public DeckLayout Current { get; private set; } = new();
 
-    /// <summary>Raised after the layout is reloaded from disk (edited externally).</summary>
+    /// <summary>Raised after the layout changes (reloaded from disk, or saved by the editor).</summary>
     public event Action? Changed;
+
+    /// <summary>Persists a layout edited in the desktop editor and pushes it to connected phones.</summary>
+    public void Save(DeckLayout layout)
+    {
+        Current = layout;
+        _suppressUntil = DateTime.UtcNow.AddMilliseconds(800); // ignore the watcher event for our own write
+        try
+        {
+            File.WriteAllText(_path, JsonSerializer.Serialize(layout, Json));
+            _log.Info($"Layout saved from editor: {layout.AllButtons.Count()} button(s).");
+        }
+        catch (Exception ex)
+        {
+            _log.Error("Failed to save layout.", ex);
+        }
+        try { Changed?.Invoke(); } catch { }
+    }
 
     public LayoutStore(AppConfig config, Log log)
     {
@@ -81,8 +99,9 @@ public sealed class LayoutStore : IDisposable
 
     private void OnFileChanged(object sender, FileSystemEventArgs e)
     {
-        // Editors fire multiple events per save — debounce.
         var now = DateTime.UtcNow;
+        if (now < _suppressUntil) return;               // our own editor write — already pushed
+        // Editors fire multiple events per save — debounce.
         if ((now - _lastReload).TotalMilliseconds < 250) return;
         _lastReload = now;
 

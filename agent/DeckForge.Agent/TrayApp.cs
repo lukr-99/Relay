@@ -1,23 +1,29 @@
 using System.Diagnostics;
+using DeckForge.Agent.Layout;
 using DeckForge.Agent.Server;
 
 namespace DeckForge.Agent;
 
-/// <summary>Tray shell (same pattern as MicForge/DL-FOV-Fixer). Right-click for pairing info + quit.</summary>
+/// <summary>Tray shell (same pattern as MicForge/DL-FOV-Fixer). Right-click for pairing info,
+/// the deck editor, and quit.</summary>
 public sealed class TrayApp : ApplicationContext
 {
     private readonly AppConfig _config;
     private readonly SessionManager _sessions;
+    private readonly LayoutStore _layout;
     private readonly Log _log;
     private readonly NotifyIcon _tray;
+    private EditorForm? _editor;
 
-    public TrayApp(AppConfig config, SessionManager sessions, Log log)
+    public TrayApp(AppConfig config, SessionManager sessions, LayoutStore layout, Log log)
     {
         _config = config;
         _sessions = sessions;
+        _layout = layout;
         _log = log;
 
         var menu = new ContextMenuStrip();
+        menu.Items.Add("Edit deck…", null, (_, _) => ShowEditor());
         menu.Items.Add("Pairing info…", null, (_, _) => ShowPairing());
         menu.Items.Add("Open data folder", null, (_, _) => Process.Start(new ProcessStartInfo(_config.DataDir) { UseShellExecute = true }));
         menu.Items.Add(new ToolStripSeparator());
@@ -30,7 +36,20 @@ public sealed class TrayApp : ApplicationContext
             Text = $"DeckForge — {Pairing.Pairing.LocalIpv4()}:{_config.Port}",
             ContextMenuStrip = menu,
         };
-        _tray.DoubleClick += (_, _) => ShowPairing();
+        _tray.DoubleClick += (_, _) => ShowEditor();
+    }
+
+    private void ShowEditor()
+    {
+        if (_editor is null || _editor.IsDisposed)
+        {
+            _editor = new EditorForm(_layout, _log);
+            _editor.FormClosed += (_, _) => _editor = null;
+            _editor.Show();
+        }
+        _editor.WindowState = FormWindowState.Normal;
+        _editor.BringToFront();
+        _editor.Activate();
     }
 
     private void ShowPairing()
