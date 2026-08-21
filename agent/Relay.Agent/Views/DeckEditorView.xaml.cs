@@ -12,7 +12,7 @@ namespace Relay.Agent.Views;
 public partial class DeckEditorView : UserControl
 {
     private static readonly string[] Types =
-        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Run command", "Hold key (PTT)", "Toggle", "MicForge" };
+        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Open folder", "Run command", "Hold key (PTT)", "Toggle", "Screenshot", "MicForge" };
 
     private static readonly string[] MicForgeControls =
         { "Mute", "Bypass", "Start / Stop", "Next preset", "Previous preset", "Preset by name", "DSP stage", "Input meter" };
@@ -357,6 +357,8 @@ public partial class DeckEditorView : UserControl
                 break;
             case "Launch app": AddText("path", "Path / command"); AddText("args", "Arguments (optional)"); break;
             case "Open URL": AddText("url", "URL"); break;
+            case "Open folder": AddFolderPicker("folder", "Folder to open"); break;
+            case "Screenshot": AddInfo("Captures all screens to Pictures\\Screenshots and copies it to the clipboard."); break;
             case "Run command": AddText("command", "Command (cmd)"); AddText("args", "Arguments (optional)"); break;
             case "Hold key (PTT)": AddText("keys", "Key(s) to hold while pressed (e.g. v)"); break;
             case "Toggle":
@@ -398,6 +400,36 @@ public partial class DeckEditorView : UserControl
         _p[key] = t;
     }
 
+    private void AddInfo(string text)
+        => ParamHost.Children.Add(new TextBlock
+        {
+            Text = text, Style = (Style)FindResource("Muted"),
+            TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 4),
+        });
+
+    /// <summary>A folder path field with a Browse… button (WinForms folder dialog).</summary>
+    private void AddFolderPicker(string key, string label)
+    {
+        ParamHost.Children.Add(new TextBlock { Text = label, Style = (Style)FindResource("Muted"), Margin = new Thickness(0, 4, 0, 4) });
+        var grid = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 8) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var tb = new TextBox();
+        var browse = new Button { Content = "Browse…", Margin = new Thickness(8, 0, 0, 0) };
+        browse.Click += (_, _) =>
+        {
+            using var d = new System.Windows.Forms.FolderBrowserDialog();
+            if (!string.IsNullOrWhiteSpace(tb.Text)) d.SelectedPath = tb.Text;
+            if (d.ShowDialog() == System.Windows.Forms.DialogResult.OK) tb.Text = d.SelectedPath;
+        };
+        System.Windows.Controls.Grid.SetColumn(tb, 0);
+        System.Windows.Controls.Grid.SetColumn(browse, 1);
+        grid.Children.Add(tb);
+        grid.Children.Add(browse);
+        ParamHost.Children.Add(grid);
+        _p[key] = tb;
+    }
+
     private void AddCombo(string key, string label, string[] items, bool editable = false)
     {
         ParamHost.Children.Add(new TextBlock { Text = label, Style = (Style)FindResource("Muted"), Margin = new Thickness(0, 4, 0, 4) });
@@ -418,6 +450,8 @@ public partial class DeckEditorView : UserControl
             case "Type text": SetVal("value", Str(p, "value")); break;
             case "Launch app": SetVal("path", Str(p, "path")); SetVal("args", Str(p, "args")); break;
             case "Open URL": SetVal("url", Str(p, "url")); break;
+            case "Open folder": SetVal("folder", Str(p, "url")); break;
+            case "Screenshot": break;
             case "Run command": SetVal("command", Str(p, "command")); SetVal("args", Str(p, "args")); break;
             case "Hold key (PTT)": SetVal("keys", Keys(p, "keys")); break;
             case "Toggle":
@@ -515,6 +549,8 @@ public partial class DeckEditorView : UserControl
             case "Type text": verb = "text"; payload = new { value = Val("value") }; break;
             case "Launch app": verb = "launch"; payload = new { path = Val("path"), args = Val("args") }; break;
             case "Open URL": verb = "open"; payload = new { url = Val("url") }; break;
+            case "Open folder": verb = "open"; payload = new { url = Val("folder"), folder = true }; break;
+            case "Screenshot": verb = "screenshot"; payload = new { }; break;
             case "Run command": provider = "script"; verb = "run"; payload = new { command = Val("command"), args = Val("args") }; break;
             case "Hold key (PTT)": verb = "holdkey"; payload = new { keys = ParseKeys(Val("keys")) }; break;
             case "Toggle":
@@ -727,12 +763,15 @@ public partial class DeckEditorView : UserControl
         if (string.Equals(a.Verb, "toggle", StringComparison.OrdinalIgnoreCase)) return "Toggle";
         if (string.Equals(a.Provider, "micforge", StringComparison.OrdinalIgnoreCase)) return "MicForge";
         if (string.Equals(a.Provider, "script", StringComparison.OrdinalIgnoreCase)) return "Run command";
+        if (string.Equals(a.Verb, "screenshot", StringComparison.OrdinalIgnoreCase)) return "Screenshot";
+        if (string.Equals(a.Verb, "open", StringComparison.OrdinalIgnoreCase))
+            return a.Params.ValueKind == JsonValueKind.Object && a.Params.TryGetProperty("folder", out var f)
+                && f.ValueKind == JsonValueKind.True ? "Open folder" : "Open URL";
         return a.Verb.ToLowerInvariant() switch
         {
             "media" => "Media key",
             "text" => "Type text",
             "launch" => "Launch app",
-            "open" => "Open URL",
             _ => "Hotkey",
         };
     }

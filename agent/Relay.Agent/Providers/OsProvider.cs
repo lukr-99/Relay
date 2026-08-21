@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.IO;
 using System.Text.Json;
+using System.Threading;
 
 namespace Relay.Agent.Providers;
 
@@ -55,11 +57,45 @@ public sealed class OsProvider : IProvider
                     Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
                 break;
 
+            case "screenshot":
+                Screenshot();
+                break;
+
             default:
                 _log.Warn($"os: unknown verb '{verb}'.");
                 break;
         }
         return Task.CompletedTask;
+    }
+
+    /// <summary>Captures all monitors to a PNG in Pictures\Screenshots and copies it to the clipboard —
+    /// an actual capture, unlike the Win+Shift+S overlay which only opens the snip tool.</summary>
+    private void Screenshot()
+    {
+        try
+        {
+            var bounds = System.Windows.Forms.SystemInformation.VirtualScreen;
+            using var bmp = new System.Drawing.Bitmap(bounds.Width, bounds.Height);
+            using (var g = System.Drawing.Graphics.FromImage(bmp))
+                g.CopyFromScreen(bounds.Location, System.Drawing.Point.Empty, bounds.Size);
+
+            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Screenshots");
+            Directory.CreateDirectory(dir);
+            var file = Path.Combine(dir, $"Relay-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.png");
+            bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png);
+
+            // Clipboard access must be on an STA thread; best-effort so a paste is ready immediately.
+            var t = new Thread(() =>
+            {
+                try { System.Windows.Forms.Clipboard.SetImage(bmp); } catch { }
+            });
+            t.SetApartmentState(ApartmentState.STA);
+            t.Start();
+            t.Join(2000);
+
+            _log.Info($"screenshot saved to {file} (and copied to clipboard).");
+        }
+        catch (Exception ex) { _log.Error("screenshot failed.", ex); }
     }
 
     private static string? GetString(JsonElement p, string name)
