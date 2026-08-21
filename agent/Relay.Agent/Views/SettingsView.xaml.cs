@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using Relay.Agent.Layout;
 
 namespace Relay.Agent.Views;
 
@@ -41,6 +42,38 @@ public partial class SettingsView : UserControl
 
     private void Repo_Click(object sender, RoutedEventArgs e)
         => Open("https://github.com/lukr-99/Relay");
+
+    private void Export_Click(object sender, RoutedEventArgs e)
+    {
+        using var d = new System.Windows.Forms.SaveFileDialog
+        {
+            Filter = "Relay deck (*.json)|*.json", FileName = "relay-deck.json",
+        };
+        if (d.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+        try
+        {
+            File.WriteAllText(d.FileName, JsonSerializer.Serialize(_svc.Layout.Current, LayoutStore.Json));
+        }
+        catch (Exception ex) { MessageBox.Show("Export failed: " + ex.Message, "Relay"); }
+    }
+
+    private void Import_Click(object sender, RoutedEventArgs e)
+    {
+        using var d = new System.Windows.Forms.OpenFileDialog { Filter = "Relay deck (*.json)|*.json" };
+        if (d.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+        try
+        {
+            var layout = JsonSerializer.Deserialize<DeckLayout>(File.ReadAllText(d.FileName), LayoutStore.Json);
+            if (layout is null || layout.Pages.Count == 0)
+            {
+                MessageBox.Show("That file isn't a valid deck.", "Relay");
+                return;
+            }
+            _svc.Layout.Save(layout);
+            MessageBox.Show("Deck imported and pushed to connected phones.", "Relay");
+        }
+        catch (Exception ex) { MessageBox.Show("Import failed: " + ex.Message, "Relay"); }
+    }
 
     private void Regen_Click(object sender, RoutedEventArgs e)
     {

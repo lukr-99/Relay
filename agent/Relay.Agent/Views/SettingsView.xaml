@@ -17,9 +17,14 @@
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
                 <StackPanel>
                     <TextBlock Text="Files" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <Button Content="Open data folder" Click="OpenData_Click" Margin="0,0,10,0"/>
                         <Button Content="Open log file" Click="OpenLog_Click"/>
+                    </StackPanel>
+                    <TextBlock Text="Back up or share your deck." Style="{StaticResource Muted}" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Export deck…" Click="Export_Click" Margin="0,0,10,0"/>
+                        <Button Content="Import deck…" Click="Import_Click"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
