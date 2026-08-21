@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -39,6 +40,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.lukr99.relay.net.ButtonDef
 import com.lukr99.relay.net.Layout
 import com.lukr99.relay.net.Page
@@ -47,7 +49,6 @@ import com.lukr99.relay.net.Page
 fun DeckScreen(
     layout: Layout,
     agentName: String?,
-    cardMinDp: Int,
     states: Map<String, Boolean>,
     onPress: (String) -> Unit,
     onHoldStart: (String) -> Unit,
@@ -79,7 +80,10 @@ fun DeckScreen(
         }
 
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { index ->
-            DeckGrid(pages[index], cardMinDp, states, onPress, onHoldStart, onHoldEnd)
+            val page = pages[index]
+            val cols = (page.grid?.cols ?: layout.grid.cols).coerceAtLeast(1)
+            val rows = (page.grid?.rows ?: layout.grid.rows).coerceAtLeast(1)
+            DeckGrid(page, cols, rows, states, onPress, onHoldStart, onHoldEnd)
         }
 
         if (pages.size > 1) {
@@ -108,21 +112,26 @@ fun DeckScreen(
 @Composable
 private fun DeckGrid(
     page: Page,
-    cardMinDp: Int,
+    cols: Int,
+    rows: Int,
     states: Map<String, Boolean>,
     onPress: (String) -> Unit,
     onHoldStart: (String) -> Unit,
     onHoldEnd: (String) -> Unit,
 ) {
-    val buttons = page.buttons.sortedWith(compareBy({ it.row }, { it.col }))
+    // Fixed cols/rows from the layout, buttons placed at their exact (row, col) — matches the editor.
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = cardMinDp.dp),
+        columns = GridCells.Fixed(cols),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        items(buttons, key = { it.id }) { b ->
-            DeckButton(b, states[b.id] == true, onPress, onHoldStart, onHoldEnd)
+        items(cols * rows) { index ->
+            val r = index / cols
+            val c = index % cols
+            val b = page.buttons.firstOrNull { it.row == r && it.col == c }
+            if (b != null) DeckButton(b, states[b.id] == true, onPress, onHoldStart, onHoldEnd)
+            else Box(Modifier.fillMaxWidth().aspectRatio(1f))
         }
     }
 }
@@ -161,21 +170,32 @@ private fun DeckButton(
             .aspectRatio(1f)
             .clip(RoundedCornerShape(16.dp))
             .background(bg)
-            .then(gesture)
-            .padding(8.dp),
+            .then(gesture),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(iconFor(b.icon), contentDescription = b.label, tint = fg)
-            Text(
-                b.label,
-                color = fg,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(top = 6.dp),
-            )
+        // Scale the icon + label to the card size so dense grids stay readable.
+        BoxWithConstraints(contentAlignment = Alignment.Center) {
+            val w = maxWidth
+            val iconSize = (w * 0.34f).coerceIn(14.dp, 40.dp)
+            val fontSize = (w.value * 0.13f).coerceIn(8f, 14f)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(4.dp),
+            ) {
+                Icon(iconFor(b.icon), contentDescription = b.label, tint = fg, modifier = Modifier.size(iconSize))
+                if (b.label.isNotBlank() && w >= 46.dp) {
+                    Text(
+                        b.label,
+                        color = fg,
+                        textAlign = TextAlign.Center,
+                        maxLines = if (w >= 92.dp) 2 else 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = fontSize.sp,
+                        lineHeight = (fontSize + 2f).sp,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
         }
     }
 }

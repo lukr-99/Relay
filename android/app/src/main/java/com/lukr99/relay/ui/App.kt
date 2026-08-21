@@ -19,7 +19,6 @@ fun App(vm: DeckViewModel) {
     val state by vm.client.state.collectAsStateWithLifecycle()
     val layout by vm.client.layout.collectAsStateWithLifecycle()
     val agentName by vm.client.agentName.collectAsStateWithLifecycle()
-    val cardMinDp by vm.cardMinDp.collectAsStateWithLifecycle()
     val buttonStates by vm.client.states.collectAsStateWithLifecycle()
 
     var showSettings by remember { mutableStateOf(false) }
@@ -33,8 +32,6 @@ fun App(vm: DeckViewModel) {
                         agentName = agentName,
                         host = vm.savedHost,
                         port = vm.savedPort,
-                        cardMinDp = cardMinDp,
-                        onSetCardMinDp = vm::setCardMinDp,
                         onDisconnect = { vm.disconnect(); showSettings = false },
                         onBack = { showSettings = false },
                     )
@@ -42,7 +39,6 @@ fun App(vm: DeckViewModel) {
                     DeckScreen(
                         layout = current,
                         agentName = agentName,
-                        cardMinDp = cardMinDp,
                         states = buttonStates,
                         onPress = vm::press,
                         onHoldStart = vm::holdStart,
