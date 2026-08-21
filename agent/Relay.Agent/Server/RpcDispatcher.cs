@@ -78,6 +78,10 @@ public sealed class RpcDispatcher
     public static string LayoutNotification(DeckLayout layout)
         => JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "deck.layout", @params = layout }, Wire);
 
+    /// <summary>Builds a <c>button.state</c> notification (e.g. a toggle flipping on/off).</summary>
+    public static string ButtonStateNotification(string id, bool on)
+        => JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "button.state", @params = new { id, on } }, Wire);
+
     private static string Result(JsonElement? id, object result)
         => JsonSerializer.Serialize(new Envelope { Id = id, Result = result }, Wire);
 

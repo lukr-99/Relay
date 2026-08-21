@@ -32,6 +32,7 @@ public sealed class DeckServer : IDisposable
         _log = log;
         _dispatcher = new RpcDispatcher(config, layout, router, providers, log);
         _layout.Changed += OnLayoutChanged;
+        router.OnButtonState = (id, on) => _sessions.BroadcastAsync(RpcDispatcher.ButtonStateNotification(id, on));
     }
 
     private void OnLayoutChanged()

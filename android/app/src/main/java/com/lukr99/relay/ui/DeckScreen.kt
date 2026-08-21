@@ -48,6 +48,7 @@ fun DeckScreen(
     layout: Layout,
     agentName: String?,
     cardMinDp: Int,
+    states: Map<String, Boolean>,
     onPress: (String) -> Unit,
     onHoldStart: (String) -> Unit,
     onHoldEnd: (String) -> Unit,
@@ -78,7 +79,7 @@ fun DeckScreen(
         }
 
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { index ->
-            DeckGrid(pages[index], cardMinDp, onPress, onHoldStart, onHoldEnd)
+            DeckGrid(pages[index], cardMinDp, states, onPress, onHoldStart, onHoldEnd)
         }
 
         if (pages.size > 1) {
@@ -108,6 +109,7 @@ fun DeckScreen(
 private fun DeckGrid(
     page: Page,
     cardMinDp: Int,
+    states: Map<String, Boolean>,
     onPress: (String) -> Unit,
     onHoldStart: (String) -> Unit,
     onHoldEnd: (String) -> Unit,
@@ -119,18 +121,21 @@ private fun DeckGrid(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        items(buttons, key = { it.id }) { b -> DeckButton(b, onPress, onHoldStart, onHoldEnd) }
+        items(buttons, key = { it.id }) { b ->
+            DeckButton(b, states[b.id] == true, onPress, onHoldStart, onHoldEnd)
+        }
     }
 }
 
 @Composable
 private fun DeckButton(
     b: ButtonDef,
+    toggledOn: Boolean,
     onPress: (String) -> Unit,
     onHoldStart: (String) -> Unit,
     onHoldEnd: (String) -> Unit,
 ) {
-    val bg = parseColor(b.color, MaterialTheme.colorScheme.surface)
+    val bg = if (toggledOn) MaterialTheme.colorScheme.primary else parseColor(b.color, MaterialTheme.colorScheme.surface)
     val fg = if (bg.luminance() > 0.5f) Color(0xFF10141A) else Color.White
     val haptics = LocalHapticFeedback.current
     // Buttons with a hold action are push-and-hold (PTT): fire on finger-down, release on up.

@@ -20,6 +20,7 @@ fun App(vm: DeckViewModel) {
     val layout by vm.client.layout.collectAsStateWithLifecycle()
     val agentName by vm.client.agentName.collectAsStateWithLifecycle()
     val cardMinDp by vm.cardMinDp.collectAsStateWithLifecycle()
+    val buttonStates by vm.client.states.collectAsStateWithLifecycle()
 
     var showSettings by remember { mutableStateOf(false) }
 
@@ -42,6 +43,7 @@ fun App(vm: DeckViewModel) {
                         layout = current,
                         agentName = agentName,
                         cardMinDp = cardMinDp,
+                        states = buttonStates,
                         onPress = vm::press,
                         onHoldStart = vm::holdStart,
                         onHoldEnd = vm::holdEnd,

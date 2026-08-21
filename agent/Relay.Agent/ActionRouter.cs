@@ -10,6 +10,10 @@ public sealed class ActionRouter
     private readonly ProviderRegistry _providers;
     private readonly LayoutStore _layout;
     private readonly Log _log;
+    private readonly Dictionary<string, bool> _toggle = new();
+
+    /// <summary>Set by the server to push button.state to phones when a toggle flips.</summary>
+    public Func<string, bool, Task>? OnButtonState;
 
     public ActionRouter(ProviderRegistry providers, LayoutStore layout, Log log)
     {
@@ -64,6 +68,12 @@ public sealed class ActionRouter
             return;
         }
 
+        if (string.Equals(action.Verb, "toggle", StringComparison.OrdinalIgnoreCase))
+        {
+            await RunToggleAsync(action.Params, ctx, ct);
+            return;
+        }
+
         if (!_providers.TryGet(action.Provider, out var provider))
         {
             _log.Warn($"{ctx}: no provider '{action.Provider}'.");
@@ -101,6 +111,27 @@ public sealed class ActionRouter
             first = false;
             var sub = step.Deserialize<ActionDef>(LayoutStore.Json);
             if (sub is not null) await RunAsync(sub, $"{ctx}/macro", ct);
+        }
+    }
+
+    /// <summary>Flips a per-button toggle, runs the on/off sub-action, and pushes button.state so the
+    /// phone can reflect it.</summary>
+    private async Task RunToggleAsync(JsonElement p, string buttonId, CancellationToken ct)
+    {
+        var now = !(_toggle.TryGetValue(buttonId, out var s) && s);
+        _toggle[buttonId] = now;
+        _log.Info($"toggle {buttonId} -> {(now ? "on" : "off")}");
+
+        var key = now ? "on" : "off";
+        if (p.ValueKind == JsonValueKind.Object && p.TryGetProperty(key, out var sub) && sub.ValueKind == JsonValueKind.Object)
+        {
+            var a = sub.Deserialize<ActionDef>(LayoutStore.Json);
+            if (a is not null) await RunAsync(a, $"{buttonId}/toggle", ct);
+        }
+
+        if (OnButtonState is { } push)
+        {
+            try { await push(buttonId, now); } catch { }
         }
     }
 }

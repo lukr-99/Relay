@@ -12,7 +12,7 @@ namespace Relay.Agent.Views;
 public partial class DeckEditorView : UserControl
 {
     private static readonly string[] Types =
-        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Run command", "Hold key (PTT)" };
+        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Run command", "Hold key (PTT)", "Toggle" };
 
     private readonly AppServices _svc;
     private DeckLayout _work = new();
@@ -268,6 +268,10 @@ public partial class DeckEditorView : UserControl
             case "Open URL": AddText("url", "URL"); break;
             case "Run command": AddText("command", "Command (cmd)"); AddText("args", "Arguments (optional)"); break;
             case "Hold key (PTT)": AddText("keys", "Key(s) to hold while pressed (e.g. v)"); break;
+            case "Toggle":
+                AddText("onkeys", "On hotkey (e.g. ctrl+shift+m)");
+                AddText("offkeys", "Off hotkey (optional; defaults to On)");
+                break;
         }
     }
 
@@ -301,6 +305,13 @@ public partial class DeckEditorView : UserControl
             case "Open URL": SetVal("url", Str(p, "url")); break;
             case "Run command": SetVal("command", Str(p, "command")); SetVal("args", Str(p, "args")); break;
             case "Hold key (PTT)": SetVal("keys", Keys(p, "keys")); break;
+            case "Toggle":
+                if (p.ValueKind == JsonValueKind.Object)
+                {
+                    if (p.TryGetProperty("on", out var onA)) SetVal("onkeys", Keys(Params(onA), "keys"));
+                    if (p.TryGetProperty("off", out var offA)) SetVal("offkeys", Keys(Params(offA), "keys"));
+                }
+                break;
             case "Chat macro":
                 if (p.ValueKind == JsonValueKind.Object && p.TryGetProperty("steps", out var steps) && steps.ValueKind == JsonValueKind.Array)
                 {
@@ -375,6 +386,15 @@ public partial class DeckEditorView : UserControl
             case "Open URL": verb = "open"; payload = new { url = Val("url") }; break;
             case "Run command": provider = "script"; verb = "run"; payload = new { command = Val("command"), args = Val("args") }; break;
             case "Hold key (PTT)": verb = "holdkey"; payload = new { keys = ParseKeys(Val("keys")) }; break;
+            case "Toggle":
+                provider = "core"; verb = "toggle";
+                var offRaw = Val("offkeys");
+                payload = new
+                {
+                    on = new { provider = "os", verb = "hotkey", @params = new { keys = ParseKeys(Val("onkeys")) } },
+                    off = new { provider = "os", verb = "hotkey", @params = new { keys = ParseKeys(offRaw.Length > 0 ? offRaw : Val("onkeys")) } },
+                };
+                break;
             case "Chat macro":
                 provider = "core"; verb = "macro";
                 payload = new
@@ -544,6 +564,7 @@ public partial class DeckEditorView : UserControl
         if (a is null) return "Hotkey";
         if (string.Equals(a.Verb, "macro", StringComparison.OrdinalIgnoreCase)) return "Chat macro";
         if (string.Equals(a.Verb, "holdkey", StringComparison.OrdinalIgnoreCase)) return "Hold key (PTT)";
+        if (string.Equals(a.Verb, "toggle", StringComparison.OrdinalIgnoreCase)) return "Toggle";
         if (string.Equals(a.Provider, "script", StringComparison.OrdinalIgnoreCase)) return "Run command";
         return a.Verb.ToLowerInvariant() switch
         {

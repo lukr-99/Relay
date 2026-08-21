@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -62,6 +64,10 @@ class DeckClient {
     private val _agentName = MutableStateFlow<String?>(null)
     val agentName: StateFlow<String?> = _agentName.asStateFlow()
 
+    // Toggle states pushed by the agent (button id -> on).
+    private val _states = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val states: StateFlow<Map<String, Boolean>> = _states.asStateFlow()
+
     fun connect(host: String, port: Int, token: String, deviceName: String) {
         this.host = host; this.port = port; this.token = token; this.deviceName = deviceName
         wantConnected = true
@@ -108,6 +114,7 @@ class DeckClient {
         override fun onOpen(webSocket: WebSocket, response: Response) {
             attempt = 0
             _state.value = ConnState.Connected
+            _states.value = emptyMap()
             webSocket.send(Rpc.hello(helloId, deviceName, "android"))
             webSocket.send(Rpc.getLayout(layoutId))
         }
@@ -122,6 +129,13 @@ class DeckClient {
                     runCatching { DeckJson.decodeFromJsonElement(Layout.serializer(), params) }
                         .getOrNull()?.let { _layout.value = it }
                 }
+                return
+            }
+            if (method == "button.state") {
+                val prm = msg["params"] as? JsonObject ?: return
+                val bid = (prm["id"] as? JsonPrimitive)?.contentOrNull() ?: return
+                val on = (prm["on"] as? JsonPrimitive)?.let { runCatching { it.boolean }.getOrNull() } ?: false
+                _states.value = _states.value + (bid to on)
                 return
             }
 
