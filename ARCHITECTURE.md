@@ -10,10 +10,10 @@ phone — the phone only knows button IDs and how to render a layout the PC push
 
 ## Stack
 
-- **Agent (PC):** C# / .NET 10, tray shell (`NotifyIcon` + a small WPF/WinForms editor, same
-  pattern as MicForge/DL-FOV-Fixer). WebSocket server via **ASP.NET Core minimal hosting
-  (Kestrel)** — it terminates WSS and can also serve the layout-editor web UI later. Input via
-  `SendInput` P/Invoke (or `H.InputSimulator`). mDNS via `Makaretu.Dns`/`Zeroconf`.
+- **Agent (PC):** C# / .NET 10 **WPF** app (hand-rolled dark theme, MicForge-style) — one window
+  with a nav rail (Deck editor / Devices / Settings) that minimises to a WinForms `NotifyIcon`
+  tray. WebSocket server via **ASP.NET Core minimal hosting (Kestrel)** — currently `ws://`; it
+  will terminate WSS later. Input via `SendInput` P/Invoke. mDNS advertising is stubbed for now.
 - **App (Android):** Kotlin + Jetpack Compose (`LazyVerticalGrid`), **OkHttp** WebSocket,
   **NsdManager** (built-in DNS-SD) for discovery, CameraX + ML Kit Barcode for QR pairing.
 - **Wire:** WebSocket (RFC 6455) carrying **JSON-RPC 2.0**. See [docs/PROTOCOL.md](docs/PROTOCOL.md).
