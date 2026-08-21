@@ -4,11 +4,26 @@
     <Grid Margin="24,20,24,20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- Preset bar -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="Preset" VerticalAlignment="Center" Foreground="{StaticResource TextMuted}"
+                       Margin="0,0,8,0" DockPanel.Dock="Left"/>
+            <ComboBox x:Name="PresetBox" Width="190" DockPanel.Dock="Left" SelectionChanged="Preset_Changed"/>
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" Margin="8,0,0,0">
+                <Button Content="New" Click="NewPreset_Click"/>
+                <Button Content="Duplicate" Margin="6,0,0,0" Click="DuplicatePreset_Click"/>
+                <Button Content="Rename" Margin="6,0,0,0" Click="RenamePreset_Click"/>
+                <Button Content="Delete" Style="{StaticResource DangerButton}" Margin="6,0,0,0" Click="DeletePreset_Click"/>
+            </StackPanel>
+            <Button Content="＋ MicForge preset" HorizontalAlignment="Right" Click="AddMicForgePreset_Click"/>
+        </DockPanel>
+
         <!-- Toolbar -->
-        <DockPanel Grid.Row="0" Margin="0,0,0,16">
+        <DockPanel Grid.Row="1" Margin="0,0,0,16">
             <TextBlock Text="Deck editor" Style="{StaticResource H1}" VerticalAlignment="Center" DockPanel.Dock="Left"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <TextBlock Text="Cols" VerticalAlignment="Center" Foreground="{StaticResource TextMuted}" Margin="0,0,6,0"/>
@@ -22,7 +37,7 @@
         </DockPanel>
 
         <!-- Body -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="330"/>

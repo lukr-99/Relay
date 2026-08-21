@@ -24,6 +24,7 @@ public partial class DeckEditorView : UserControl
     private readonly Dictionary<string, Control> _p = new();
     private string? _selectedId;
     private bool _loading;
+    private bool _loadingPresets;
     private Point _dragStart;
 
     public DeckEditorView(AppServices svc)
@@ -51,8 +52,92 @@ public partial class DeckEditorView : UserControl
         PopulatePages(0);
         _loading = false;
 
+        PopulatePresets(_svc.Layout.ActivePreset);
         RebuildGrid();
         Select(null);
+    }
+
+    // ── presets ──────────────────────────────────────────────────────────────────────────────
+    private void PopulatePresets(string select)
+    {
+        _loadingPresets = true;
+        PresetBox.Items.Clear();
+        foreach (var p in _svc.Layout.Presets) PresetBox.Items.Add(p);
+        PresetBox.SelectedItem = select;
+        if (PresetBox.SelectedItem is null && PresetBox.Items.Count > 0) PresetBox.SelectedIndex = 0;
+        _loadingPresets = false;
+    }
+
+    private void Preset_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingPresets) return;
+        if (PresetBox.SelectedItem is not string name || name == _svc.Layout.ActivePreset) return;
+        CommitWork();                    // persist edits to the outgoing preset
+        _svc.Layout.SetActive(name);     // load + push the new one
+        LoadFromStore();                 // reload the editor from the new active preset
+        Hint.Text = $"Switched to preset “{name}”.";
+    }
+
+    private void NewPreset_Click(object sender, RoutedEventArgs e)
+    {
+        var name = PromptText("New preset", "")?.Trim();
+        if (string.IsNullOrWhiteSpace(name)) return;
+        if (_svc.Layout.Exists(name)) { MessageBox.Show("A preset with that name already exists.", "Relay"); return; }
+        var blank = new DeckLayout
+        {
+            Grid = new Relay.Agent.Layout.Grid { Cols = 4, Rows = 3 }, ActivePage = "p-main",
+            Pages = { new Page { Id = "p-main", Name = "Main" } },
+        };
+        if (!_svc.Layout.Create(name, blank)) { MessageBox.Show("Couldn't create that preset.", "Relay"); return; }
+        CommitWork();
+        _svc.Layout.SetActive(name);
+        LoadFromStore();
+        Hint.Text = $"Created preset “{name}”.";
+    }
+
+    private void DuplicatePreset_Click(object sender, RoutedEventArgs e)
+    {
+        var name = PromptText("Duplicate preset as", _svc.Layout.ActivePreset + " copy")?.Trim();
+        if (string.IsNullOrWhiteSpace(name)) return;
+        if (_svc.Layout.Exists(name)) { MessageBox.Show("A preset with that name already exists.", "Relay"); return; }
+        CommitWork();                    // so the copy includes the current edits
+        if (!_svc.Layout.Duplicate(_svc.Layout.ActivePreset, name)) { MessageBox.Show("Couldn't duplicate the preset.", "Relay"); return; }
+        _svc.Layout.SetActive(name);
+        LoadFromStore();
+        Hint.Text = $"Duplicated to “{name}”.";
+    }
+
+    private void RenamePreset_Click(object sender, RoutedEventArgs e)
+    {
+        var current = _svc.Layout.ActivePreset;
+        var name = PromptText("Rename preset", current)?.Trim();
+        if (string.IsNullOrWhiteSpace(name) || name == current) return;
+        if (_svc.Layout.Exists(name)) { MessageBox.Show("A preset with that name already exists.", "Relay"); return; }
+        if (!_svc.Layout.Rename(current, name)) { MessageBox.Show("Couldn't rename the preset.", "Relay"); return; }
+        PopulatePresets(name);
+        Hint.Text = $"Renamed to “{name}”.";
+    }
+
+    private void DeletePreset_Click(object sender, RoutedEventArgs e)
+    {
+        var name = _svc.Layout.ActivePreset;
+        if (_svc.Layout.Presets.Count <= 1) { MessageBox.Show("You need at least one preset.", "Relay"); return; }
+        if (MessageBox.Show($"Delete preset “{name}”?", "Relay",
+                MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
+        _svc.Layout.Delete(name);        // another preset becomes active + is pushed
+        LoadFromStore();
+        Hint.Text = $"Deleted “{name}”; now on “{_svc.Layout.ActivePreset}”.";
+    }
+
+    private void AddMicForgePreset_Click(object sender, RoutedEventArgs e)
+    {
+        var name = "MicForge";
+        for (int n = 2; _svc.Layout.Exists(name); n++) name = $"MicForge {n}";
+        if (!_svc.Layout.Create(name, PresetTemplates.MicForge())) { MessageBox.Show("Couldn't add the MicForge preset.", "Relay"); return; }
+        CommitWork();
+        _svc.Layout.SetActive(name);
+        LoadFromStore();
+        Hint.Text = "Added the MicForge preset — its buttons mirror MicForge's live state.";
     }
 
     private void PopulatePages(int select)
@@ -524,12 +609,18 @@ public partial class DeckEditorView : UserControl
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
+        CommitWork();
+        Hint.Text = $"Saved & pushed at {DateTime.Now:HH:mm:ss}.";
+    }
+
+    /// <summary>Flush the selected button + grid dims into <c>_work</c> and persist it to the active preset.</summary>
+    private void CommitWork()
+    {
         ApplySelected();
         _work.Grid.Cols = ColsBox.SelectedItem is int c ? c : 4;
         _work.Grid.Rows = RowsBox.SelectedItem is int r ? r : 3;
         if (string.IsNullOrEmpty(_work.ActivePage)) _work.ActivePage = _page.Id;
         _svc.Layout.Save(_work);
-        Hint.Text = $"Saved & pushed at {DateTime.Now:HH:mm:ss}.";
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────────────

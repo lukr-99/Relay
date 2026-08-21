@@ -100,16 +100,14 @@ Raw ideas captured after seeing Phase 0 on-device. Not yet slotted into phases. 
   drops; verified it comes back on its own after an agent restart.
 
 ### Deck presets / profiles (user idea 2026-08-21)
-- **Named, switchable whole-deck presets** (a.k.a. profiles) — not pages *within* one deck, but
-  distinct decks you pick between. Ship a **Default** preset (the user's current tiles) and a
-  **MicForge** preset (mic mute / bypass / start-stop / preset buttons), and let the user create
-  more **custom** presets. `high / high`
-- Implies: agent stores multiple layouts (e.g. `presets/<name>.json`) with one **active**; the
-  editor gets a preset switcher + new/duplicate/rename/delete; the phone can switch presets (picker)
-  and/or the agent pushes the active one. Overlaps with Phase 3 "profiles that auto-switch by
-  foreground app" — manual presets first, auto-switch rule later.
-- **Seed content:** on first run (or a "＋ MicForge preset" button) generate the MicForge deck so the
-  new `micforge` provider is discoverable without hand-building it.
+- ✅ **PC-controlled presets — done 2026-08-21.** Named, switchable *whole decks* stored one-per-file
+  in `%AppData%\Relay\presets\<name>.json` with one **active** (pointer in `presets\active.txt`); the
+  active preset is what's watched, edited, and pushed. First run migrates the old `layout.json` into a
+  **Default** preset. Editor gets a **preset bar** (switcher + New / Duplicate / Rename / Delete) and a
+  one-click **＋ MicForge preset** (`PresetTemplates.MicForge()` — mute/bypass/start-stop + prev/next
+  preset). Switching pushes the new deck to phones live.
+- ⏭️ **Next:** a **phone-side preset picker** (needs a small protocol addition: list presets +
+  select). Then Phase-3 **auto-switch by foreground app/game**.
 
 ### Clip button
 - **How it works:** the button fires an `os.hotkey` chord (currently `Alt+F10`); the agent
