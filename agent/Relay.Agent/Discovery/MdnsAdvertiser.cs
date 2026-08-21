@@ -28,7 +28,12 @@ public sealed class MdnsAdvertiser : IDisposable
         try
         {
             var instance = $"Relay on {Environment.MachineName}";
-            var profile = new ServiceProfile(instance, "_relay._tcp", (ushort)_config.Port);
+            // Advertise only reachable LAN addresses, so a phone never resolves a host-only/virtual
+            // address (e.g. a VirtualBox 192.168.56.x) that it can't connect to.
+            var addresses = Pairing.Pairing.LanAddresses();
+            var profile = addresses.Count > 0
+                ? new ServiceProfile(instance, "_relay._tcp", (ushort)_config.Port, addresses)
+                : new ServiceProfile(instance, "_relay._tcp", (ushort)_config.Port);
             profile.AddProperty("v", "1");
             profile.AddProperty("id", _config.AgentId);
             profile.AddProperty("name", _config.DeviceName);

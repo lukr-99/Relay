@@ -22,6 +22,7 @@ public partial class App : Application
         var config = AppConfig.Load();
         var log = new Log(config.LogPath);
         log.Info($"Relay agent {AppInfo.Version} starting — id={config.AgentId} port={config.Port}");
+        log.Info($"pairing address (QR host): {Pairing.Pairing.LocalIpv4()}:{config.Port}");
 
         var cert = Cert.LoadOrCreate(config, log);
         var layout = new LayoutStore(config, log);
