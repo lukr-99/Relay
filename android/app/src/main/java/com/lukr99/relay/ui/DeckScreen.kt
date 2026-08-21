@@ -1,7 +1,14 @@
 package com.lukr99.relay.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -32,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ripple
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
@@ -45,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -212,22 +221,36 @@ private fun DeckButton(
     onHoldStart: (String) -> Unit,
     onHoldEnd: (String) -> Unit,
 ) {
-    val bg = if (toggledOn) MaterialTheme.colorScheme.primary else parseColor(b.color, MaterialTheme.colorScheme.surface)
-    val fg = if (bg.luminance() > 0.5f) Color(0xFF10141A) else Color.White
     val haptics = LocalHapticFeedback.current
+    val interaction = remember { MutableInteractionSource() }
+    var held by remember { mutableStateOf(false) }
+    val pressed = interaction.collectIsPressedAsState().value || held
+
+    // Smooth toggle colour crossfade + a springy press "squish" shared by taps and holds.
+    val targetBg = if (toggledOn) MaterialTheme.colorScheme.primary else parseColor(b.color, MaterialTheme.colorScheme.surface)
+    val bg by animateColorAsState(targetBg, animationSpec = tween(200), label = "bg")
+    val fg = if (bg.luminance() > 0.5f) Color(0xFF10141A) else Color.White
+    val scale by animateFloatAsState(
+        if (pressed) 0.90f else 1f,
+        animationSpec = spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow),
+        label = "scale",
+    )
+
     // Buttons with a hold action are push-and-hold (PTT): fire on finger-down, release on up.
     val gesture = if (b.hasHold != null) {
         Modifier.pointerInput(b.id) {
             awaitEachGesture {
                 awaitFirstDown()
+                held = true
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 onHoldStart(b.id)
                 waitForUpOrCancellation()
+                held = false
                 onHoldEnd(b.id)
             }
         }
     } else {
-        Modifier.clickable {
+        Modifier.clickable(interactionSource = interaction, indication = ripple()) {
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             onPress(b.id)
         }
@@ -236,17 +259,19 @@ private fun DeckButton(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(16.dp))
             .background(bg)
             .then(gesture),
         contentAlignment = Alignment.Center,
     ) {
-        // Live input-level meter (MicForge): a thin bar pinned to the bottom edge.
+        // Live input-level meter (MicForge): a thin bar pinned to the bottom edge; width eased.
         if (level != null) {
+            val animLevel by animateFloatAsState(level.coerceIn(0f, 1f), animationSpec = tween(120), label = "level")
             Box(
                 Modifier
                     .align(Alignment.BottomStart)
-                    .fillMaxWidth(level.coerceIn(0f, 1f))
+                    .fillMaxWidth(animLevel)
                     .height(5.dp)
                     .background(meterColor(level)),
             )
