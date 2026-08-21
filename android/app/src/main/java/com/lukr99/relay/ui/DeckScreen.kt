@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -23,13 +25,22 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +61,10 @@ fun DeckScreen(
     layout: Layout,
     agentName: String?,
     states: Map<String, Boolean>,
+    levels: Map<String, Float>,
+    presets: List<String>,
+    activePreset: String?,
+    onSelectPreset: (String) -> Unit,
     onPress: (String) -> Unit,
     onHoldStart: (String) -> Unit,
     onHoldEnd: (String) -> Unit,
@@ -73,9 +88,17 @@ fun DeckScreen(
                     if (pages.size > 1 && page != null) append("   ·   ${page.name}")
                 },
                 style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
-            IconButton(onClick = onOpenSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (presets.size > 1) {
+                    PresetPicker(presets, activePreset, onSelectPreset)
+                }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                }
             }
         }
 
@@ -83,7 +106,7 @@ fun DeckScreen(
             val page = pages[index]
             val cols = (page.grid?.cols ?: layout.grid.cols).coerceAtLeast(1)
             val rows = (page.grid?.rows ?: layout.grid.rows).coerceAtLeast(1)
-            DeckGrid(page, cols, rows, states, onPress, onHoldStart, onHoldEnd)
+            DeckGrid(page, cols, rows, states, levels, onPress, onHoldStart, onHoldEnd)
         }
 
         if (pages.size > 1) {
@@ -109,12 +132,56 @@ fun DeckScreen(
     }
 }
 
+/** Meter bar colour: green when healthy, amber as it gets hot, red near clipping. */
+private fun meterColor(level: Float): Color = when {
+    level >= 0.85f -> Color(0xFFE5543B)
+    level >= 0.6f -> Color(0xFFE3B23C)
+    else -> Color(0xFF7FB069)
+}
+
+/** Header dropdown that lists the agent's deck presets and switches the active one. */
+@Composable
+private fun PresetPicker(
+    presets: List<String>,
+    active: String?,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { expanded = true }) {
+            Text(
+                active ?: "Preset",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 140.dp),
+            )
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = "Switch preset")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            presets.forEach { name ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    leadingIcon = {
+                        if (name == active) Icon(Icons.Filled.Check, contentDescription = null)
+                        else Box(Modifier.size(24.dp))
+                    },
+                    onClick = {
+                        expanded = false
+                        if (name != active) onSelect(name)
+                    },
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun DeckGrid(
     page: Page,
     cols: Int,
     rows: Int,
     states: Map<String, Boolean>,
+    levels: Map<String, Float>,
     onPress: (String) -> Unit,
     onHoldStart: (String) -> Unit,
     onHoldEnd: (String) -> Unit,
@@ -130,7 +197,7 @@ private fun DeckGrid(
             val r = index / cols
             val c = index % cols
             val b = page.buttons.firstOrNull { it.row == r && it.col == c }
-            if (b != null) DeckButton(b, states[b.id] == true, onPress, onHoldStart, onHoldEnd)
+            if (b != null) DeckButton(b, states[b.id] == true, levels[b.id], onPress, onHoldStart, onHoldEnd)
             else Box(Modifier.fillMaxWidth().aspectRatio(1f))
         }
     }
@@ -140,6 +207,7 @@ private fun DeckGrid(
 private fun DeckButton(
     b: ButtonDef,
     toggledOn: Boolean,
+    level: Float?,
     onPress: (String) -> Unit,
     onHoldStart: (String) -> Unit,
     onHoldEnd: (String) -> Unit,
@@ -173,6 +241,16 @@ private fun DeckButton(
             .then(gesture),
         contentAlignment = Alignment.Center,
     ) {
+        // Live input-level meter (MicForge): a thin bar pinned to the bottom edge.
+        if (level != null) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth(level.coerceIn(0f, 1f))
+                    .height(5.dp)
+                    .background(meterColor(level)),
+            )
+        }
         // Scale the icon + label to the card size so dense grids stay readable.
         BoxWithConstraints(contentAlignment = Alignment.Center) {
             val w = maxWidth

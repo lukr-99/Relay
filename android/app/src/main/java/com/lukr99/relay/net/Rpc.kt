@@ -77,4 +77,16 @@ object Rpc {
             put("jsonrpc", "2.0"); put("method", "button.hold")
             putJsonObject("params") { put("id", buttonId); put("phase", phase) }
         })
+
+    fun presetList(id: Int): String =
+        DeckJson.encodeToString(JsonObject.serializer(), buildJsonObject {
+            put("jsonrpc", "2.0"); put("id", id); put("method", "preset.list")
+            putJsonObject("params") {}
+        })
+
+    fun presetSelect(name: String): String =
+        DeckJson.encodeToString(JsonObject.serializer(), buildJsonObject {
+            put("jsonrpc", "2.0"); put("method", "preset.select")
+            putJsonObject("params") { put("name", name) }
+        })
 }

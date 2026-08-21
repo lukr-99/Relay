@@ -76,26 +76,38 @@ reading would deadlock the pipe).
 | `{"op":"toggle","target":"mute\|bypass\|running"}` | flip it |
 | `{"op":"preset","name":"…"}` | load a preset by name |
 | `{"op":"preset","dir":"next\|prev"}` | cycle presets |
+| `{"op":"stage","id":"…","value":true}` | enable/disable a DSP stage by id _(Phase 2)_ |
+| `{"op":"stage","id":"…"}` | toggle a DSP stage _(Phase 2)_ |
+| `{"op":"meter","enabled":true\|false}` | subscribe/unsubscribe to the input-level stream _(Phase 2)_ |
 
 **MicForge → client**
 
 | Message | Meaning |
 |---|---|
 | `{"type":"hello","app":"MicForge","version":"…","protocol":1}` | sent once on connect |
-| `{"type":"state","mute":…,"bypass":…,"running":…,"preset":"…","presets":[…]}` | current state; pushed on connect and on every change |
+| `{"type":"state","mute":…,"bypass":…,"running":…,"preset":"…","presets":[…],"stages":[{id,title,enabled,canToggle}]}` | current state; pushed on connect and on every change. `stages` added in Phase 2. |
+| `{"type":"meter","in":0.0..1.0}` | input level, pushed ~10 Hz while a client is subscribed via `{"op":"meter"}` _(Phase 2)_ |
 
 The provider maps each `state` onto `button.state` for any deck button bound to `micforge` (mute /
 bypass / startstop, or a preset button whose name matches `preset`), so the phone mirrors MicForge
 live. On disconnect it clears those buttons. Authoring: the agent's deck editor has a **MicForge**
 action type (Mute / Bypass / Start-Stop / Next preset / Previous preset / Preset by name).
 
-### Phase 2 — richer control (future)
+### Phase 2 — richer control ✅ (DSP stages + live meter, done 2026-08-21)
 
-- **Parameter nudges:** `param.set {stage,param,value}` / `nudge {…, delta}` for input gain,
-  threshold, etc. — deck buttons or a phone slider row.
-- **DSP stages:** flip Gate / Noise Suppression / Voice Changer with feedback (add a
-  `stage`/`stages` field to the state and a `{"op":"stage","id":…,"enabled":…}` command).
-- **Live meter on a button:** stream input level; render it as a badge/bar on a button.
+- ✅ **DSP stages:** flip any MicForge stage (Gate / Noise Suppression / Voice Changer / …) from a
+  deck button **with live feedback** — the button lights up when the stage is enabled, and follows
+  toggles made in MicForge's own UI or by a preset load. State carries a `stages` array
+  (`{id,title,enabled,canToggle}`); the command is `{"op":"stage","id":…}` (toggle) or
+  `…,"value":…` (set). The agent editor's **MicForge** action type gains **"DSP stage"** (its picker
+  is populated live from the stages MicForge reports).
+- ✅ **Live meter on a button:** a **"Input meter"** MicForge button streams MicForge's input level and
+  renders it as a bottom bar (green→amber→red). The agent subscribes (`{"op":"meter","enabled":true}`)
+  only while a meter button is on the active deck; MicForge then pushes `{"type":"meter","in":…}`
+  ~10 Hz, forwarded to phones as `button.level`.
+
+Still open (future): **parameter nudges** — `param.set {stage,param,value}` / `nudge {…, delta}` for
+input gain, threshold, etc. — deck buttons or a phone slider row.
 
 > Any of the user's other apps can become deck-controllable by hosting the same tiny NDJSON pipe
 > contract — it's the one protocol Relay defines itself (see

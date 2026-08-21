@@ -39,12 +39,15 @@ public sealed class DeckServer : IDisposable
         Func<string, bool, Task> pushState = (id, on) => _sessions.BroadcastAsync(RpcDispatcher.ButtonStateNotification(id, on));
         router.OnButtonState = pushState;
         providers.MicForge.OnButtonState = pushState;
+        providers.MicForge.OnButtonLevel = (id, level) => _sessions.BroadcastAsync(RpcDispatcher.ButtonLevelNotification(id, level));
     }
 
     private void OnLayoutChanged()
     {
         if (_sessions.Count == 0) return;
         _ = _sessions.BroadcastAsync(RpcDispatcher.LayoutNotification(_layout.Current));
+        // Keep phone-side preset pickers in sync (active switch, or a preset renamed/created/deleted).
+        _ = _sessions.BroadcastAsync(RpcDispatcher.PresetChangedNotification(_layout.Presets, _layout.ActivePreset));
         _log.Info($"pushed updated layout to {_sessions.Count} phone(s).");
     }
 

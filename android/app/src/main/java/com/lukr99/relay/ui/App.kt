@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,6 +21,8 @@ fun App(vm: DeckViewModel) {
     val layout by vm.client.layout.collectAsStateWithLifecycle()
     val agentName by vm.client.agentName.collectAsStateWithLifecycle()
     val buttonStates by vm.client.states.collectAsStateWithLifecycle()
+    val buttonLevels by vm.client.levels.collectAsStateWithLifecycle()
+    val presets by vm.client.presets.collectAsStateWithLifecycle()
 
     var showSettings by remember { mutableStateOf(false) }
 
@@ -40,6 +43,10 @@ fun App(vm: DeckViewModel) {
                         layout = current,
                         agentName = agentName,
                         states = buttonStates,
+                        levels = buttonLevels,
+                        presets = presets.names,
+                        activePreset = presets.active,
+                        onSelectPreset = vm::selectPreset,
                         onPress = vm::press,
                         onHoldStart = vm::holdStart,
                         onHoldEnd = vm::holdEnd,
@@ -47,11 +54,20 @@ fun App(vm: DeckViewModel) {
                     )
                 }
             } else {
+                // Browse the LAN for agents only while the pairing screen is up.
+                val discovered by vm.discovery.agents.collectAsStateWithLifecycle()
+                DisposableEffect(Unit) {
+                    vm.startDiscovery()
+                    onDispose { vm.stopDiscovery() }
+                }
                 PairScreen(
                     state = state,
                     initialHost = vm.savedHost,
                     initialPort = vm.savedPort,
                     initialToken = vm.savedToken,
+                    discovered = discovered,
+                    savedAgentId = vm.savedAgentId,
+                    savedToken = vm.savedToken,
                     onConnect = vm::connect,
                 )
             }

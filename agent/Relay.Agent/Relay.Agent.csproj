@@ -8,7 +8,7 @@
     <RootNamespace>Relay.Agent</RootNamespace>
     <AssemblyName>Relay.Agent</AssemblyName>
     <ApplicationIcon>Relay.ico</ApplicationIcon>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Product>Relay</Product>
     <Description>Relay agent — turns an Android phone into a Stream Deck for Windows</Description>
   </PropertyGroup>
@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.6.0" />
+    <!-- DNS-SD/mDNS responder so phones auto-discover the agent (_relay._tcp). -->
+    <PackageReference Include="Makaretu.Dns.Multicast" Version="0.27.0" />
   </ItemGroup>
 
   <!-- This is a WPF app that also uses WinForms only for the tray NotifyIcon. Drop the WinForms

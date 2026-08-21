@@ -23,18 +23,28 @@ public sealed class MicForgeProvider : IProvider, IDisposable
     private readonly SemaphoreSlim _writeSem = new(1, 1);
     private StreamWriter? _writer;
     private State? _last;
+    private bool _meterWanted;
 
     public string Id => "micforge";
 
     /// <summary>Set by the server: pushes a button.state to phones (mirrors MicForge's real state).</summary>
     public Func<string, bool, Task>? OnButtonState;
 
+    /// <summary>Set by the server: pushes a button.level (0..1) to phones for a live meter badge.</summary>
+    public Func<string, double, Task>? OnButtonLevel;
+
+    /// <summary>The DSP stages MicForge last reported (id + display title), for the editor's stage picker.</summary>
+    public IReadOnlyList<StageInfo> KnownStages { get; private set; } = Array.Empty<StageInfo>();
+
     public MicForgeProvider(LayoutStore layout, Log log)
     {
         _layout = layout;
         _log = log;
+        _layout.Changed += OnLayoutChanged;
         _ = Task.Run(() => RunAsync(_cts.Token));
     }
+
+    private void OnLayoutChanged() => _ = EvaluateMeterSubscriptionAsync();
 
     public async Task InvokeAsync(string verb, JsonElement p, CancellationToken ct = default)
     {
@@ -44,8 +54,11 @@ public sealed class MicForgeProvider : IProvider, IDisposable
             "bypass" => SetOrToggle(p, "bypass"),
             "startstop" => JsonSerializer.Serialize(new { op = "toggle", target = "running" }),
             "preset" => PresetCommand(p),
+            "stage" => StageCommand(p),
+            "meter" => null,   // a meter button has no press action; it just displays the live level
             _ => null,
         };
+        if (verb.Equals("meter", StringComparison.OrdinalIgnoreCase)) return;
         if (line is null) { _log.Warn($"micforge: unknown verb '{verb}'."); return; }
 
         if (!await WriteAsync(line, ct))
@@ -73,6 +86,18 @@ public sealed class MicForgeProvider : IProvider, IDisposable
         return JsonSerializer.Serialize(new { op = "preset", dir = "next" });
     }
 
+    /// <summary>Toggle (or set) a DSP stage by id. A <c>value</c> param sets it explicitly; else it toggles.</summary>
+    private static string? StageCommand(JsonElement p)
+    {
+        if (p.ValueKind != JsonValueKind.Object || !p.TryGetProperty("id", out var idEl) ||
+            idEl.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(idEl.GetString()))
+            return null;
+        var id = idEl.GetString();
+        if (p.TryGetProperty("value", out var v) && (v.ValueKind == JsonValueKind.True || v.ValueKind == JsonValueKind.False))
+            return JsonSerializer.Serialize(new { op = "stage", id, value = v.GetBoolean() });
+        return JsonSerializer.Serialize(new { op = "stage", id });
+    }
+
     // ── connection loop ──────────────────────────────────────────────────────────────────────
     private async Task RunAsync(CancellationToken ct)
     {
@@ -85,11 +110,13 @@ public sealed class MicForgeProvider : IProvider, IDisposable
                 var reader = new StreamReader(pipe, new UTF8Encoding(false));
                 var writer = new StreamWriter(pipe, new UTF8Encoding(false)) { AutoFlush = true };
                 _writer = writer;
+                _meterWanted = false;
                 _log.Info("micforge: connected to MicForge control pipe.");
-                // Do NOT write anything here: MicForge pushes hello+state unsolicited on connect, and
-                // writing before we start reading would deadlock (both sides blocked writing, neither
-                // reading). We only ever write in response to a button press, by which point MicForge
-                // is in its read loop.
+                // Do NOT write synchronously here before reading: MicForge pushes hello+state unsolicited
+                // on connect, and writing before we start reading would deadlock. We only write on the
+                // async path — a fire-and-forget meter (un)subscribe below, and button presses — by which
+                // point MicForge is in its read loop.
+                _ = EvaluateMeterSubscriptionAsync();
                 string? line;
                 while (!ct.IsCancellationRequested && (line = await reader.ReadLineAsync(ct)) != null)
                     HandleMessage(line);
@@ -101,6 +128,8 @@ public sealed class MicForgeProvider : IProvider, IDisposable
             {
                 _writer = null;
                 _last = null;
+                _meterWanted = false;
+                KnownStages = Array.Empty<StageInfo>();
                 ClearButtonStates();
             }
 
@@ -114,14 +143,51 @@ public sealed class MicForgeProvider : IProvider, IDisposable
         try { root = JsonDocument.Parse(line).RootElement; }
         catch { return; }
         if (root.ValueKind != JsonValueKind.Object) return;
-        if (!(root.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String && t.GetString() == "state"))
-            return;
+        if (!(root.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String)) return;
 
+        switch (t.GetString())
+        {
+            case "state": HandleState(root); break;
+            case "meter": HandleMeter(root); break;
+        }
+    }
+
+    private void HandleState(JsonElement root)
+    {
+        var stages = ParseStages(root);
+        KnownStages = stages;
         var s = new State(
             Bool(root, "mute"), Bool(root, "bypass"), Bool(root, "running"),
-            root.TryGetProperty("preset", out var pr) && pr.ValueKind == JsonValueKind.String ? pr.GetString() ?? "" : "");
+            root.TryGetProperty("preset", out var pr) && pr.ValueKind == JsonValueKind.String ? pr.GetString() ?? "" : "",
+            stages);
         _last = s;
         PushButtonStates(s);
+    }
+
+    private void HandleMeter(JsonElement root)
+    {
+        if (OnButtonLevel is not { } push) return;
+        double level = root.TryGetProperty("in", out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0.0;
+        foreach (var b in _layout.Current.AllButtons)
+            if (b.Action is { } a && string.Equals(a.Provider, Id, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(a.Verb, "meter", StringComparison.OrdinalIgnoreCase))
+                _ = push(b.Id, level);
+    }
+
+    private static IReadOnlyList<StageInfo> ParseStages(JsonElement root)
+    {
+        if (!root.TryGetProperty("stages", out var arr) || arr.ValueKind != JsonValueKind.Array)
+            return Array.Empty<StageInfo>();
+        var list = new List<StageInfo>();
+        foreach (var e in arr.EnumerateArray())
+        {
+            if (e.ValueKind != JsonValueKind.Object) continue;
+            var id = e.TryGetProperty("id", out var i) && i.ValueKind == JsonValueKind.String ? i.GetString() : null;
+            if (string.IsNullOrEmpty(id)) continue;
+            var title = e.TryGetProperty("title", out var ti) && ti.ValueKind == JsonValueKind.String ? ti.GetString() ?? id : id;
+            list.Add(new StageInfo(id!, title!, Bool(e, "enabled"), Bool(e, "canToggle")));
+        }
+        return list;
     }
 
     // ── deck mirroring ───────────────────────────────────────────────────────────────────────
@@ -144,6 +210,7 @@ public sealed class MicForgeProvider : IProvider, IDisposable
                 "bypass" => s.Bypass,
                 "startstop" => s.Running,
                 "preset" => PresetName(a.Params) is { Length: > 0 } name && string.Equals(name, s.Preset, StringComparison.OrdinalIgnoreCase),
+                "stage" => StageId(a.Params) is { Length: > 0 } sid && s.Stages.Any(st => string.Equals(st.Id, sid, StringComparison.OrdinalIgnoreCase) && st.Enabled),
                 _ => false,
             };
             _ = push(b.Id, on);
@@ -152,10 +219,12 @@ public sealed class MicForgeProvider : IProvider, IDisposable
 
     private void ClearButtonStates()
     {
-        if (OnButtonState is not { } push) return;
         foreach (var b in _layout.Current.AllButtons)
-            if (b.Action is { } a && string.Equals(a.Provider, Id, StringComparison.OrdinalIgnoreCase))
-                _ = push(b.Id, false);
+        {
+            if (b.Action is not { } a || !string.Equals(a.Provider, Id, StringComparison.OrdinalIgnoreCase)) continue;
+            if (string.Equals(a.Verb, "meter", StringComparison.OrdinalIgnoreCase)) { if (OnButtonLevel is { } pl) _ = pl(b.Id, 0.0); }
+            else if (OnButtonState is { } push) _ = push(b.Id, false);
+        }
     }
 
     /// <summary>Writes one command line. Async throughout: the pipe is opened for overlapped I/O and a
@@ -181,8 +250,25 @@ public sealed class MicForgeProvider : IProvider, IDisposable
         => p.ValueKind == JsonValueKind.Object && p.TryGetProperty("name", out var v) && v.ValueKind == JsonValueKind.String
             ? v.GetString() : null;
 
+    private static string? StageId(JsonElement p)
+        => p.ValueKind == JsonValueKind.Object && p.TryGetProperty("id", out var v) && v.ValueKind == JsonValueKind.String
+            ? v.GetString() : null;
+
+    /// <summary>Subscribe to MicForge's level stream only while the active deck has a meter button —
+    /// no point streaming ~10 Hz to nothing. Called on connect and whenever the layout changes.</summary>
+    private async Task EvaluateMeterSubscriptionAsync()
+    {
+        bool want = _layout.Current.AllButtons.Any(b =>
+            b.Action is { } a && string.Equals(a.Provider, Id, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(a.Verb, "meter", StringComparison.OrdinalIgnoreCase));
+        if (want == _meterWanted) return;
+        _meterWanted = want;
+        await WriteAsync(JsonSerializer.Serialize(new { op = "meter", enabled = want }), _cts.Token);
+    }
+
     public void Dispose()
     {
+        try { _layout.Changed -= OnLayoutChanged; } catch { }
         try { _cts.Cancel(); } catch { }
         try { _writer?.Dispose(); } catch { }
         _writer = null;
@@ -190,5 +276,9 @@ public sealed class MicForgeProvider : IProvider, IDisposable
         try { _cts.Dispose(); } catch { }
     }
 
-    private readonly record struct State(bool Mute, bool Bypass, bool Running, string Preset);
+    private readonly record struct State(bool Mute, bool Bypass, bool Running, string Preset, IReadOnlyList<StageInfo> Stages);
+
+    /// <summary>A DSP stage MicForge reports: stable <paramref name="Id"/> (processor name) + display
+    /// <paramref name="Title"/>, its current enabled state, and whether it can be toggled at all.</summary>
+    public readonly record struct StageInfo(string Id, string Title, bool Enabled, bool CanToggle);
 }

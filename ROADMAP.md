@@ -11,7 +11,9 @@ Get one real button press from phone to PC with acceptable latency, over the rea
 - **Agent: WSS server + JSON-RPC dispatch** (Kestrel, `relay.v1` subprotocol). `high / med`
 - **Agent: `os` provider — `hotkey`** via `SendInput`. `high / low`
 - **Agent: QR pairing + bearer-token auth + cert pinning.** `high / med`
-- **Agent: mDNS advertise** (`_relay._tcp`). `med / low`
+- ✅ **Agent: mDNS advertise** (`_relay._tcp`) — done 2026-08-21 (Makaretu responder; TXT carries
+  `v`/`id`/`name`/`fp`). Phone browses via `NsdManager` and can re-find the agent by `id` after an IP
+  change.
 - **App: NSD discovery + WSS connect + QR scan pairing.** `high / med`
 - **App: single-page Compose grid, static layout, fire `button.press`.** `high / med`
 - **Agent: minimal tray shell + a hard-coded layout file.** `med / low`
@@ -40,7 +42,9 @@ instant.
   contract; MicForge hosts `DeckBridge`, the agent's `micforge` provider is the client and mirrors
   MicForge state onto the deck via `button.state`. See
   [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md#micforge).
-- **Live "value" buttons** — now-playing (SMTC), input level meter badge. `med / med`
+- ✅ **MicForge Phase 2** (DSP stages + live input meter) — done 2026-08-21. Toggle any of MicForge's
+  ~23 stages from a button with live feedback; an "Input meter" button shows the live level as a bar.
+- **Live "value" buttons** — now-playing (SMTC); the MicForge input-level meter badge is done. `med / med`
 
 ## Phase 3 — Power features
 
@@ -106,8 +110,9 @@ Raw ideas captured after seeing Phase 0 on-device. Not yet slotted into phases. 
   **Default** preset. Editor gets a **preset bar** (switcher + New / Duplicate / Rename / Delete) and a
   one-click **＋ MicForge preset** (`PresetTemplates.MicForge()` — mute/bypass/start-stop + prev/next
   preset). Switching pushes the new deck to phones live.
-- ⏭️ **Next:** a **phone-side preset picker** (needs a small protocol addition: list presets +
-  select). Then Phase-3 **auto-switch by foreground app/game**.
+- ✅ **Phone-side preset picker — done 2026-08-21.** `preset.list` / `preset.select` RPC + a
+  `preset.changed` push; the phone header shows a dropdown to switch decks live.
+- ⏭️ **Next:** Phase-3 **auto-switch by foreground app/game** (builds on presets).
 
 ### Clip button
 - **How it works:** the button fires an `os.hotkey` chord (currently `Alt+F10`); the agent

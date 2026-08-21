@@ -9,9 +9,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.float
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -37,6 +39,9 @@ sealed interface ConnState {
     data class Failed(val reason: String) : ConnState
 }
 
+/** The agent's deck presets and which one is active. Drives the phone-side preset picker. */
+data class PresetState(val names: List<String> = emptyList(), val active: String? = null)
+
 /**
  * OkHttp WebSocket client speaking JSON-RPC 2.0 to the Relay agent. Bearer token on the handshake.
  * Auto-reconnects with backoff when the socket drops (e.g. the agent restarts), so the deck comes
@@ -57,9 +62,11 @@ class DeckClient {
     private var deviceName = "Android"
     private var pinnedFp = ""
     private var onPin: (String) -> Unit = {}
+    private var onAgentId: (String) -> Unit = {}
 
     private val helloId = 1
     private val layoutId = 2
+    private val presetId = 3
 
     private val _state = MutableStateFlow<ConnState>(ConnState.Disconnected)
     val state: StateFlow<ConnState> = _state.asStateFlow()
@@ -74,9 +81,18 @@ class DeckClient {
     private val _states = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val states: StateFlow<Map<String, Boolean>> = _states.asStateFlow()
 
-    fun connect(host: String, port: Int, token: String, deviceName: String, pinnedFp: String, onPin: (String) -> Unit) {
+    // Deck presets + active, for the phone-side picker.
+    private val _presets = MutableStateFlow(PresetState())
+    val presets: StateFlow<PresetState> = _presets.asStateFlow()
+
+    // Live 0..1 levels pushed by the agent (button id -> level), for meter buttons.
+    private val _levels = MutableStateFlow<Map<String, Float>>(emptyMap())
+    val levels: StateFlow<Map<String, Float>> = _levels.asStateFlow()
+
+    fun connect(host: String, port: Int, token: String, deviceName: String, pinnedFp: String,
+                onPin: (String) -> Unit, onAgentId: (String) -> Unit = {}) {
         this.host = host; this.port = port; this.token = token; this.deviceName = deviceName
-        this.pinnedFp = pinnedFp; this.onPin = onPin
+        this.pinnedFp = pinnedFp; this.onPin = onPin; this.onAgentId = onAgentId
         wantConnected = true
         attempt = 0
         reconnectJob?.cancel()
@@ -131,6 +147,7 @@ class DeckClient {
     fun press(buttonId: String) { socket?.send(Rpc.press(buttonId)) }
     fun holdStart(buttonId: String) { socket?.send(Rpc.hold(buttonId, "start")) }
     fun holdEnd(buttonId: String) { socket?.send(Rpc.hold(buttonId, "end")) }
+    fun selectPreset(name: String) { socket?.send(Rpc.presetSelect(name)) }
 
     private fun scheduleReconnect() {
         if (!wantConnected || reconnectJob?.isActive == true) return
@@ -148,8 +165,10 @@ class DeckClient {
             attempt = 0
             _state.value = ConnState.Connected
             _states.value = emptyMap()
+            _levels.value = emptyMap()
             webSocket.send(Rpc.hello(helloId, deviceName, "android"))
             webSocket.send(Rpc.getLayout(layoutId))
+            webSocket.send(Rpc.presetList(presetId))
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
@@ -171,16 +190,37 @@ class DeckClient {
                 _states.value = _states.value + (bid to on)
                 return
             }
+            if (method == "preset.changed") {
+                (msg["params"] as? JsonObject)?.let { _presets.value = parsePresets(it) }
+                return
+            }
+            if (method == "button.level") {
+                val prm = msg["params"] as? JsonObject ?: return
+                val bid = (prm["id"] as? JsonPrimitive)?.contentOrNull() ?: return
+                val lvl = (prm["level"] as? JsonPrimitive)?.let { runCatching { it.float }.getOrNull() } ?: 0f
+                _levels.value = _levels.value + (bid to lvl.coerceIn(0f, 1f))
+                return
+            }
 
             val id = (msg["id"] as? kotlinx.serialization.json.JsonPrimitive)?.intOrNull()
             val result = msg["result"] as? JsonObject ?: return
             when (id) {
-                helloId -> _agentName.value = (result["agent"] as? JsonObject)
-                    ?.get("name")?.jsonPrimitive?.contentOrNull()
+                helloId -> (result["agent"] as? JsonObject)?.let { agent ->
+                    _agentName.value = agent["name"]?.jsonPrimitive?.contentOrNull()
+                    agent["id"]?.jsonPrimitive?.contentOrNull()?.takeIf { it.isNotBlank() }?.let(onAgentId)
+                }
                 layoutId -> _layout.value = runCatching {
                     DeckJson.decodeFromJsonElement(Layout.serializer(), result)
                 }.getOrNull()
+                presetId -> _presets.value = parsePresets(result)
             }
+        }
+
+        private fun parsePresets(obj: JsonObject): PresetState {
+            val names = (obj["presets"] as? JsonArray)
+                ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull() } ?: emptyList()
+            val active = (obj["active"] as? JsonPrimitive)?.contentOrNull()
+            return PresetState(names, active)
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {

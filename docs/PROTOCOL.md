@@ -65,6 +65,8 @@ Every WS **text** message is one JSON-RPC 2.0 object (or a batch array).
 | `button.press` | **notification** | `{ id, at? }` | — | Fire on tap. `at` = client ISO-8601 timestamp (optional, for latency stats). |
 | `button.hold` | **notification** | `{ id, phase }` | — | `phase` ∈ `start`\|`end` for press-and-hold actions (e.g. push-to-talk). |
 | `deck.subscribe` | request | `{ ids?:[…] }` | `{ ok:true }` | Subscribe to state for these buttons (or all if omitted). |
+| `preset.list` | request | `{}` | `{ presets:[…], active }` | List the named deck presets and which is active. |
+| `preset.select` | notification | `{ name }` | — | Switch the active preset. The agent pushes the new `deck.layout` + `preset.changed` to all phones. |
 | `ping` | request | `{}` | `{ t }` | App-level RTT check (WS ping/pong also used at transport level). |
 
 ## 5. Methods (events) — agent → phone
@@ -74,7 +76,9 @@ Sent as **notifications** from the agent:
 | Method | Params | Notes |
 |---|---|---|
 | `deck.layout` | `Layout` | Pushed after `session.hello`, and whenever the layout is edited on the PC. |
+| `preset.changed` | `{ presets:[…], active }` | Pushed when the active preset switches or the preset set changes (renamed/created/deleted), so phone-side pickers stay in sync. |
 | `button.state` | `{ id, on?, label?, color?, badge?, icon? }` | Live feedback: mute→red, active scene/preset highlight, level badge. Only changed fields are sent. |
+| `button.level` | `{ id, level }` | Live 0..1 value for a meter button (e.g. MicForge input level); rendered as a bar. Streamed ~10 Hz while a meter button is on the active deck. |
 | `agent.notice` | `{ level, text }` | Toast on the phone (`info`\|`warn`\|`error`). E.g. "OBS disconnected". |
 | `session.bye` | `{ reason }` | Agent is closing the session (shutdown, unpaired, token revoked). |
 

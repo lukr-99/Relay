@@ -1,28 +1,53 @@
+using Makaretu.Dns;
+
 namespace Relay.Agent.Discovery;
 
 /// <summary>
-/// Advertises the agent as <c>_relay._tcp</c> over mDNS/DNS-SD so phones on the LAN can find it
-/// with zero configuration.
-///
-/// TODO(mDNS): wire a real DNS-SD responder. Phase 0 ships with this stubbed — the phone pairs by
-/// scanning the tray QR (or typing host:port + token), which carries the IP directly. A minimal
-/// UDP multicast responder on 224.0.0.251:5353 (or a maintained DNS-SD package) lands next so the
-/// Android NsdManager browse can auto-discover us. See docs/PROTOCOL.md §1.
+/// Advertises the agent as <c>_relay._tcp</c> over mDNS/DNS-SD (via Makaretu) so phones on the LAN
+/// can find it with zero configuration and re-find it by <c>id</c> after the PC's IP changes. The TXT
+/// record carries <c>v</c>, <c>id</c>, <c>name</c> and the cert <c>fp</c> — never the token; pairing
+/// still requires the token (QR or manual), so discovery only locates an agent, it doesn't authorise.
+/// See docs/PROTOCOL.md §1.
 /// </summary>
 public sealed class MdnsAdvertiser : IDisposable
 {
     private readonly AppConfig _config;
     private readonly Log _log;
+    private readonly string _fingerprint;
+    private ServiceDiscovery? _sd;
 
-    public MdnsAdvertiser(AppConfig config, Log log)
+    public MdnsAdvertiser(AppConfig config, Log log, string fingerprint)
     {
         _config = config;
         _log = log;
+        _fingerprint = fingerprint;
     }
 
     public void Start()
-        => _log.Info($"mDNS advertising not enabled yet — pair via the tray QR / manual host:port " +
-                     $"({Pairing.Pairing.LocalIpv4()}:{_config.Port}).");
+    {
+        try
+        {
+            var instance = $"Relay on {Environment.MachineName}";
+            var profile = new ServiceProfile(instance, "_relay._tcp", (ushort)_config.Port);
+            profile.AddProperty("v", "1");
+            profile.AddProperty("id", _config.AgentId);
+            profile.AddProperty("name", _config.DeviceName);
+            if (!string.IsNullOrEmpty(_fingerprint)) profile.AddProperty("fp", _fingerprint);
 
-    public void Dispose() { }
+            _sd = new ServiceDiscovery();
+            _sd.Advertise(profile);
+            _log.Info($"mDNS advertising _relay._tcp as '{instance}' on port {_config.Port}.");
+        }
+        catch (Exception ex)
+        {
+            // Never fatal: the phone can still pair by QR / manual host:port.
+            _log.Warn($"mDNS advertising failed ({ex.GetType().Name}: {ex.Message}); pair via the tray QR " +
+                      $"/ manual host:port ({Pairing.Pairing.LocalIpv4()}:{_config.Port}).");
+        }
+    }
+
+    public void Dispose()
+    {
+        try { _sd?.Dispose(); } catch { }
+    }
 }

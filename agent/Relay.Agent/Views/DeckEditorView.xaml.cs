@@ -15,9 +15,12 @@ public partial class DeckEditorView : UserControl
         { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Run command", "Hold key (PTT)", "Toggle", "MicForge" };
 
     private static readonly string[] MicForgeControls =
-        { "Mute", "Bypass", "Start / Stop", "Next preset", "Previous preset", "Preset by name" };
+        { "Mute", "Bypass", "Start / Stop", "Next preset", "Previous preset", "Preset by name", "DSP stage", "Input meter" };
 
     private readonly AppServices _svc;
+    // For the MicForge "DSP stage" picker: maps between a stage's display title and its stable id.
+    private readonly Dictionary<string, string> _stageIdByTitle = new();
+    private readonly Dictionary<string, string> _stageTitleById = new();
     private DeckLayout _work = new();
     private Page _page = new();
 
@@ -362,10 +365,30 @@ public partial class DeckEditorView : UserControl
                 break;
             case "MicForge":
                 AddCombo("mf_target", "Control", MicForgeControls);
+                AddStageCombo();
                 AddText("mf_preset", "Preset name (for 'Preset by name')");
                 break;
         }
     }
+
+    /// <summary>The "DSP stage" dropdown, populated from the stages MicForge last reported. Editable so a
+    /// stage can still be typed by id when MicForge isn't connected.</summary>
+    private void AddStageCombo()
+    {
+        _stageIdByTitle.Clear();
+        _stageTitleById.Clear();
+        var titles = new List<string>();
+        foreach (var s in _svc.Providers.MicForge.KnownStages)
+        {
+            _stageIdByTitle[s.Title] = s.Id;
+            _stageTitleById[s.Id] = s.Title;
+            titles.Add(s.Title);
+        }
+        AddCombo("mf_stage", "DSP stage (for 'DSP stage')", titles.ToArray(), editable: true);
+    }
+
+    private string ResolveStageId(string title)
+        => _stageIdByTitle.TryGetValue(title, out var id) ? id : title;
 
     private void AddText(string key, string label)
     {
@@ -375,10 +398,10 @@ public partial class DeckEditorView : UserControl
         _p[key] = t;
     }
 
-    private void AddCombo(string key, string label, string[] items)
+    private void AddCombo(string key, string label, string[] items, bool editable = false)
     {
         ParamHost.Children.Add(new TextBlock { Text = label, Style = (Style)FindResource("Muted"), Margin = new Thickness(0, 4, 0, 4) });
-        var c = new ComboBox { Margin = new Thickness(0, 0, 0, 8) };
+        var c = new ComboBox { Margin = new Thickness(0, 0, 0, 8), IsEditable = editable };
         foreach (var i in items) c.Items.Add(i);
         ParamHost.Children.Add(c);
         _p[key] = c;
@@ -421,9 +444,13 @@ public partial class DeckEditorView : UserControl
                     "preset" => p.ValueKind == JsonValueKind.Object && p.TryGetProperty("dir", out var dir) && dir.ValueKind == JsonValueKind.String
                         ? (dir.GetString() == "prev" ? "Previous preset" : "Next preset")
                         : "Preset by name",
+                    "stage" => "DSP stage",
+                    "meter" => "Input meter",
                     _ => "Mute",
                 });
                 SetVal("mf_preset", Str(p, "name"));
+                var sid = Str(p, "id");
+                if (sid.Length > 0) SetVal("mf_stage", _stageTitleById.TryGetValue(sid, out var st) ? st : sid);
                 break;
         }
     }
@@ -521,6 +548,8 @@ public partial class DeckEditorView : UserControl
                     "Next preset" => ("preset", new { dir = "next" }),
                     "Previous preset" => ("preset", new { dir = "prev" }),
                     "Preset by name" => ("preset", new { name = Val("mf_preset") }),
+                    "DSP stage" => ("stage", new { id = ResolveStageId(Val("mf_stage")) }),
+                    "Input meter" => ("meter", new { }),
                     _ => ("mute", new { }),
                 };
                 break;

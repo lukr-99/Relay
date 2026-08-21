@@ -47,7 +47,7 @@ public sealed class RpcDispatcher
                 _log.Info($"session {session.Id} hello from '{session.DeviceName ?? "?"}'");
                 return Result(id, new
                 {
-                    agent = new { id = _config.AgentId, name = _config.DeviceName, version = "0.2.0" },
+                    agent = new { id = _config.AgentId, name = _config.DeviceName, version = AppInfo.Version },
                     capabilities = System.Linq.Enumerable.ToArray(_providers.Ids),
                 });
 
@@ -69,6 +69,16 @@ public sealed class RpcDispatcher
                     await _router.HoldAsync(hid, GetString(p, "phase") ?? "start", ct);
                 return null;
 
+            case "preset.list":
+                return Result(id, new { presets = _layout.Presets, active = _layout.ActivePreset });
+
+            case "preset.select":
+                {
+                    var name = GetString(p, "name");
+                    var ok = name is not null && _layout.SetActive(name);
+                    return Result(id, new { ok, active = _layout.ActivePreset });
+                }
+
             default:
                 return id is null ? null : Error(id, -32601, $"method not found: {method}");
         }
@@ -81,6 +91,15 @@ public sealed class RpcDispatcher
     /// <summary>Builds a <c>button.state</c> notification (e.g. a toggle flipping on/off).</summary>
     public static string ButtonStateNotification(string id, bool on)
         => JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "button.state", @params = new { id, on } }, Wire);
+
+    /// <summary>Builds a <c>button.level</c> notification carrying a 0..1 live level for a meter button.</summary>
+    public static string ButtonLevelNotification(string id, double level)
+        => JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "button.level", @params = new { id, level } }, Wire);
+
+    /// <summary>Builds a <c>preset.changed</c> notification so a phone's picker stays in sync when the
+    /// active preset switches or the preset set changes (renamed/created/deleted in the editor).</summary>
+    public static string PresetChangedNotification(IReadOnlyList<string> presets, string active)
+        => JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "preset.changed", @params = new { presets, active } }, Wire);
 
     private static string Result(JsonElement? id, object result)
         => JsonSerializer.Serialize(new Envelope { Id = id, Result = result }, Wire);

@@ -23,6 +23,11 @@ class PairingStore(context: Context) {
         get() = prefs.getString("fp", "") ?: ""
         set(v) = prefs.edit().putString("fp", v).apply()
 
+    /** The paired agent's stable id (from session.hello). Lets NSD re-find it after its IP changes. */
+    var agentId: String
+        get() = prefs.getString("agentId", "") ?: ""
+        set(v) = prefs.edit().putString("agentId", v).apply()
+
     /** Minimum card edge in dp — drives the adaptive grid (smaller = more/tighter cards). */
     var cardMinDp: Int
         get() = prefs.getInt("cardMinDp", 96)

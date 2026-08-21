@@ -3,6 +3,7 @@ package com.lukr99.relay.ui
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +33,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.lukr99.relay.net.ConnState
+import com.lukr99.relay.net.DiscoveredAgent
 
 @Composable
 fun PairScreen(
@@ -38,6 +41,9 @@ fun PairScreen(
     initialHost: String,
     initialPort: Int,
     initialToken: String,
+    discovered: List<DiscoveredAgent> = emptyList(),
+    savedAgentId: String = "",
+    savedToken: String = "",
     onConnect: (host: String, port: Int, token: String, fp: String) -> Unit,
 ) {
     val context = LocalContext.current
@@ -92,6 +98,43 @@ fun PairScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        if (discovered.isNotEmpty()) {
+            Spacer(Modifier.height(24.dp))
+            Text("Found on your network", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(8.dp))
+            discovered.forEach { agent ->
+                val known = agent.id.isNotBlank() && agent.id == savedAgentId && savedToken.isNotBlank()
+                Surface(
+                    onClick = {
+                        host = agent.host
+                        port = agent.port.toString()
+                        if (known) onConnect(agent.host, agent.port, savedToken, agent.fp)
+                    },
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column {
+                            Text(agent.displayName, style = MaterialTheme.typography.bodyLarge)
+                            Text("${agent.host}:${agent.port}", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text(
+                            if (known) "Reconnect" else "Use",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
+        }
 
         Spacer(Modifier.height(24.dp))
         Text("or enter manually", style = MaterialTheme.typography.bodySmall,

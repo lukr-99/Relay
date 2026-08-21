@@ -1,6 +1,10 @@
 # Relay — Handoff & Status
 
-_Last updated: 2026-08-21. Everything below is committed and pushed to `main` on both repos._
+_Last updated: 2026-08-21 (v0.3.0: phone preset picker, MicForge Phase 2, mDNS, versioned installers)._
+
+> **Paths are machine-specific.** This handoff was first written on a machine with the repos under
+> `C:\Users\krejci\Code\…`; they currently also live at `F:\Code\Relay` and `F:\Code\MicForge`.
+> Substitute your own clone paths throughout.
 
 A pick-up-anywhere snapshot: what Relay is, what works, how to build/run it on a fresh
 machine, and what to do next. For design detail see [ARCHITECTURE.md](ARCHITECTURE.md),
@@ -17,8 +21,9 @@ renderer (Kotlin/Compose); the **Windows agent** (WPF) is the brain. They talk o
 QR, tap a button, an action fires on the PC; edit the deck in the agent and the phone updates
 live.
 
-The two most recent features — **MicForge control** and **deck presets** — are done, verified,
-and shipped.
+As of **v0.3.0** the deck also has a **phone-side preset picker**, **MicForge Phase 2** (DSP-stage
+toggles + a live input-level meter), and **mDNS auto-discovery**. Both apps now build **versioned
+installers** — a self-contained Windows installer for the agent and a signed release APK.
 
 ---
 
@@ -26,8 +31,8 @@ and shipped.
 
 | Repo | Local path | What's in it |
 |---|---|---|
-| **Relay** (this) | `C:\Users\krejci\Code\Relay` | `agent/` (WPF Windows agent), `android/` (Kotlin phone app), `docs/` |
-| **MicForge** | `C:\Users\krejci\Code\MicForge` | The mic-DSP app. Hosts the **Deck Control Bridge** the agent talks to. |
+| **Relay** (this) | `…\Code\Relay` | `agent/` (WPF Windows agent), `android/` (Kotlin phone app), `docs/` |
+| **MicForge** | `…\Code\MicForge` | The mic-DSP app. Hosts the **Deck Control Bridge** the agent talks to. |
 
 The MicForge integration is **cross-repo**: the agent's `micforge` provider is a client of a
 loopback pipe server (`Services/DeckBridge.cs`) inside MicForge. Both must be running on the same
@@ -74,8 +79,20 @@ dotnet publish MicForge.csproj -c Release -r win-x64 --self-contained true -o pu
 Start-Process installer\MicForge-Setup-<ver>.exe -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait
 ```
 
-**Pair the phone**: agent → **Devices** tab shows a QR (and host/port/token). Scan it with the
-app's "Scan QR code" button. Token lives in `%AppData%\Relay\relay.state.json`.
+**Build the versioned installers** (v0.3.0+)
+```powershell
+.\tools\build-installer.ps1        # -> agent\installer\Relay-Setup-<ver>.exe (self-contained, per-user)
+.\tools\build-apk.ps1              # -> android\dist\Relay-<ver>.apk (signed release)
+```
+- The agent installer bundles the .NET 10 runtime — end users need nothing installed. Version comes
+  from the csproj `<Version>`. Needs **Inno Setup 6**.
+- The APK is signed from `android\keystore.properties` (gitignored) → `android\relay-release.keystore`
+  (also gitignored — **back this up**; losing it means you can't ship signed updates). Without those,
+  `build-apk.ps1` falls back to the debug key (runnable, not distributable). `build-apk.ps1`
+  auto-detects a **JDK 17+** if `JAVA_HOME` points at an older one.
+
+**Pair the phone**: agent → **Devices** tab shows a QR (and host/port/token), or (v0.3.0+) tap the PC
+under **"Found on your network"** on the pair screen. Token lives in `%AppData%\Relay\relay.state.json`.
 
 ---
 
@@ -98,34 +115,45 @@ app's "Scan QR code" button. Token lives in `%AppData%\Relay\relay.state.json`.
   `%AppData%\Relay\presets\<name>.json` (one active, pointer in `active.txt`). Editor **preset bar**
   (switch / New / Duplicate / Rename / Delete) + one-click **＋ MicForge preset**. First run migrated
   the old `layout.json` into a **Default** preset.
+- **Phone-side preset picker (v0.3.0):** `preset.list` / `preset.select` RPC + a `preset.changed`
+  push (`RpcDispatcher.cs`, `DeckServer.cs`); the phone header shows a dropdown that lists presets and
+  switches the active deck live (`DeckClient.kt`, `DeckScreen.kt`).
+- **MicForge Phase 2 (v0.3.0):** toggle any of MicForge's ~23 **DSP stages** from a button (verb
+  `stage`, live feedback) and an **"Input meter"** button that streams the live level as a bar (verb
+  `meter` → `button.level`, ~10 Hz). Contract extended in both repos: `stages` in state +
+  `{"op":"stage"}` / `{"op":"meter"}` (`MicForge/Services/DeckBridge.cs`, agent `MicForgeProvider.cs`).
+  Editor **MicForge** action type gains "DSP stage" (live stage picker) + "Input meter".
+- **mDNS auto-discovery (v0.3.0):** the agent advertises `_relay._tcp` via **Makaretu**
+  (`Discovery/MdnsAdvertiser.cs`); the phone browses with **`NsdManager`** (`net/NsdDiscovery.kt`) and
+  shows found agents on the pair screen — a match on the saved agent `id` offers one-tap **Reconnect**
+  (survives the PC's IP changing). The token is never in mDNS; pairing still needs the QR/manual token.
+- **Versioned installers (v0.3.0):** `tools\build-installer.ps1` → self-contained agent installer
+  `agent\installer\Relay-Setup-<ver>.exe` (Inno Setup); `tools\build-apk.ps1` → signed
+  `android\dist\Relay-<ver>.apk`. Agent version = csproj `<Version>` (surfaced via `AppInfo.Version`);
+  app version = `versionName`/`versionCode` in `android/app/build.gradle.kts`.
 
 ---
 
 ## What's TO DO ⏭️ (roughly prioritized)
 
-### 1. Phone-side preset picker  `high value / med effort`
-Presets are PC-controlled today; let the phone switch them too.
-- **Agent:** add JSON-RPC methods in `agent/Relay.Agent/Server/RpcDispatcher.cs`:
-  `preset.list` → `{ presets: LayoutStore.Presets, active: LayoutStore.ActivePreset }`;
-  `preset.select {name}` → `LayoutStore.SetActive(name)` (already pushes the new layout).
-  Optionally push a `preset.changed` notification from `DeckServer` when the active preset changes.
-- **Phone:** add `Rpc.presetList()/presetSelect()` in `net/DeckClient.kt`, expose a
-  `StateFlow<presets/active>`, and a small dropdown/menu in `ui/DeckScreen.kt`.
+The three items that headlined the last handoff — **phone preset picker**, **MicForge Phase 2**, and
+**mDNS** — are all **done** (see What's DONE). Next up:
 
-### 2. MicForge Phase 2 — DSP stages + live meter  `high / med`
-Extend the pipe contract (both repos): add `stages` to MicForge's `state` and a
-`{"op":"stage","id":…,"enabled":…}` command in `MicForge/Services/DeckBridge.cs`; add a `stage`
-verb + a "MicForge: Stage" editor type in Relay. Then a **live input-level** field for a meter
-badge on a button.
+### 1. Profiles that auto-switch by foreground app/game  `high / high`
+Phase-3 headliner; builds directly on presets. Watch the focused window (Win32 event hook) and call
+`LayoutStore.SetActive` when it matches a rule. The whole push/mirror path already exists.
 
-### 3. mDNS / NSD auto-discovery  `med / low`
-Advertise `_relay._tcp` from the agent (`Discovery/MdnsAdvertiser.cs` is currently a stub) so the
-phone can find the PC without a QR. Lower priority — QR already carries host/port/token/fp.
+### 2. MicForge Phase 2b — parameter nudges  `med / med`
+`param.set {stage,param,value}` / `nudge {…, delta}` for input gain / threshold, driving a phone
+slider row. Extends the same pipe contract (stages + meter already landed).
+
+### 3. OBS provider  `high / med`
+obs-websocket v5 (scenes / mute / stream-record) with live scene highlight. Was NU1101-unavailable
+before — revisit the package (Makaretu restored fine now, so the feed may be healthy again).
 
 ### 4. Backlog (see ROADMAP.md)
-Per-orientation layouts; a general multi-step macro editor; OBS provider (obs-websocket v5 — was
-NU1101-unavailable, revisit); **profiles that auto-switch by foreground app/game** (builds on the
-new presets); OSC/MIDI inbound; a configurable "clip" hotkey.
+Per-orientation layouts; a general multi-step macro editor; OSC/MIDI inbound; a configurable "clip"
+hotkey; auto-updater (check GitHub Releases — the installers make this easy now).
 
 ---
 
@@ -165,6 +193,9 @@ new QR).
 
 ## Latest commits
 
-- **Relay:** `feat: deck presets — named switchable whole decks (PC-controlled)` →
+- **v0.3.0 work is implemented and verified but not yet committed** (both repos). It spans the phone
+  preset picker, MicForge Phase 2 (stages + meter, cross-repo), mDNS, and the versioned installers.
+  Commit both repos when ready.
+- Prior **Relay:** `feat: deck presets — named switchable whole decks (PC-controlled)` →
   `feat: MicForge provider …` → `feat: WSS + certificate pinning`.
-- **MicForge:** `chore: release v1.6.3 (Deck Control Bridge)` → `feat: Deck Control Bridge for Relay`.
+- Prior **MicForge:** `chore: release v1.6.3 (Deck Control Bridge)` → `feat: Deck Control Bridge for Relay`.
