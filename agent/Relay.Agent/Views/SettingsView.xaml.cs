@@ -35,6 +35,16 @@ public partial class SettingsView : UserControl
         UpdateScriptToggle();
     }
 
+    private void AddMicForge_Click(object sender, RoutedEventArgs e)
+    {
+        var name = "MicForge";
+        for (int n = 2; _svc.Layout.Exists(name); n++) name = $"MicForge {n}";
+        if (!_svc.Layout.Create(name, PresetTemplates.MicForge()))
+        { MessageBox.Show("Couldn't add the MicForge preset.", "Relay"); return; }
+        _svc.Layout.SetActive(name);   // becomes active + pushed; the Presets/Deck tabs pick it up
+        MessageBox.Show($"Added the MicForge preset “{name}” and made it active.", "Relay");
+    }
+
     private void OpenData_Click(object sender, RoutedEventArgs e)
         => Open(_svc.Config.DataDir);
 

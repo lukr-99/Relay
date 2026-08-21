@@ -28,6 +28,8 @@
                 <StackPanel>
                     <RadioButton x:Name="NavDeck" Style="{StaticResource NavButton}" GroupName="nav" IsChecked="True"
                                  Content="Deck editor" Checked="NavDeck_Checked"/>
+                    <RadioButton x:Name="NavPresets" Style="{StaticResource NavButton}" GroupName="nav"
+                                 Content="Presets" Checked="NavPresets_Checked"/>
                     <RadioButton x:Name="NavDevices" Style="{StaticResource NavButton}" GroupName="nav"
                                  Content="Devices" Checked="NavDevices_Checked"/>
                     <RadioButton x:Name="NavProfiles" Style="{StaticResource NavButton}" GroupName="nav"

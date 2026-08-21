@@ -16,6 +16,15 @@
 
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
                 <StackPanel>
+                    <TextBlock Text="Presets" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBlock Text="Add a ready-made MicForge control deck (mute / bypass / preset cycling + an input-gain slider). Manage presets in the Presets tab."
+                               Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <Button Content="＋ MicForge preset" Click="AddMicForge_Click" HorizontalAlignment="Left"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
                     <TextBlock Text="Files" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <Button Content="Open data folder" Click="OpenData_Click" Margin="0,0,10,0"/>

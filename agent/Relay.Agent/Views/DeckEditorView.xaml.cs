@@ -26,6 +26,7 @@ public partial class DeckEditorView : UserControl
 
     private readonly Dictionary<string, Control> _p = new();
     private string? _selectedId;
+    private string _loadedPreset = "";
     private bool _loading;
     private bool _loadingPresets;
     private Point _dragStart;
@@ -56,6 +57,7 @@ public partial class DeckEditorView : UserControl
         _loading = false;
 
         PopulatePresets(_svc.Layout.ActivePreset);
+        _loadedPreset = _svc.Layout.ActivePreset;
         RebuildGrid();
         PopulateSliders();
         Select(null);
@@ -82,66 +84,12 @@ public partial class DeckEditorView : UserControl
         Hint.Text = $"Switched to preset “{name}”.";
     }
 
-    private void NewPreset_Click(object sender, RoutedEventArgs e)
+    /// <summary>Called when the Deck editor tab is shown: reload if the active preset changed elsewhere
+    /// (e.g. in the Presets tab), else just refresh the chooser names.</summary>
+    public void SyncActivePreset()
     {
-        var name = PromptText("New preset", "")?.Trim();
-        if (string.IsNullOrWhiteSpace(name)) return;
-        if (_svc.Layout.Exists(name)) { MessageBox.Show("A preset with that name already exists.", "Relay"); return; }
-        var blank = new DeckLayout
-        {
-            Grid = new Relay.Agent.Layout.Grid { Cols = 4, Rows = 3 }, ActivePage = "p-main",
-            Pages = { new Page { Id = "p-main", Name = "Main" } },
-        };
-        if (!_svc.Layout.Create(name, blank)) { MessageBox.Show("Couldn't create that preset.", "Relay"); return; }
-        CommitWork();
-        _svc.Layout.SetActive(name);
-        LoadFromStore();
-        Hint.Text = $"Created preset “{name}”.";
-    }
-
-    private void DuplicatePreset_Click(object sender, RoutedEventArgs e)
-    {
-        var name = PromptText("Duplicate preset as", _svc.Layout.ActivePreset + " copy")?.Trim();
-        if (string.IsNullOrWhiteSpace(name)) return;
-        if (_svc.Layout.Exists(name)) { MessageBox.Show("A preset with that name already exists.", "Relay"); return; }
-        CommitWork();                    // so the copy includes the current edits
-        if (!_svc.Layout.Duplicate(_svc.Layout.ActivePreset, name)) { MessageBox.Show("Couldn't duplicate the preset.", "Relay"); return; }
-        _svc.Layout.SetActive(name);
-        LoadFromStore();
-        Hint.Text = $"Duplicated to “{name}”.";
-    }
-
-    private void RenamePreset_Click(object sender, RoutedEventArgs e)
-    {
-        var current = _svc.Layout.ActivePreset;
-        var name = PromptText("Rename preset", current)?.Trim();
-        if (string.IsNullOrWhiteSpace(name) || name == current) return;
-        if (_svc.Layout.Exists(name)) { MessageBox.Show("A preset with that name already exists.", "Relay"); return; }
-        if (!_svc.Layout.Rename(current, name)) { MessageBox.Show("Couldn't rename the preset.", "Relay"); return; }
-        PopulatePresets(name);
-        Hint.Text = $"Renamed to “{name}”.";
-    }
-
-    private void DeletePreset_Click(object sender, RoutedEventArgs e)
-    {
-        var name = _svc.Layout.ActivePreset;
-        if (_svc.Layout.Presets.Count <= 1) { MessageBox.Show("You need at least one preset.", "Relay"); return; }
-        if (MessageBox.Show($"Delete preset “{name}”?", "Relay",
-                MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
-        _svc.Layout.Delete(name);        // another preset becomes active + is pushed
-        LoadFromStore();
-        Hint.Text = $"Deleted “{name}”; now on “{_svc.Layout.ActivePreset}”.";
-    }
-
-    private void AddMicForgePreset_Click(object sender, RoutedEventArgs e)
-    {
-        var name = "MicForge";
-        for (int n = 2; _svc.Layout.Exists(name); n++) name = $"MicForge {n}";
-        if (!_svc.Layout.Create(name, PresetTemplates.MicForge())) { MessageBox.Show("Couldn't add the MicForge preset.", "Relay"); return; }
-        CommitWork();
-        _svc.Layout.SetActive(name);
-        LoadFromStore();
-        Hint.Text = "Added the MicForge preset — its buttons mirror MicForge's live state.";
+        if (_svc.Layout.ActivePreset != _loadedPreset) LoadFromStore();
+        else PopulatePresets(_svc.Layout.ActivePreset);
     }
 
     private void PopulatePages(int select)
@@ -192,30 +140,7 @@ public partial class DeckEditorView : UserControl
         Select(null);
     }
 
-    private string? PromptText(string title, string initial)
-    {
-        var tb = new TextBox { Text = initial, Margin = new Thickness(16, 16, 16, 8), MinWidth = 260 };
-        var ok = new Button { Content = "OK", Width = 80, IsDefault = true, Margin = new Thickness(0, 0, 8, 0), Style = (Style)FindResource("AccentButton") };
-        var cancel = new Button { Content = "Cancel", Width = 80, IsCancel = true };
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(16, 0, 16, 12) };
-        buttons.Children.Add(ok);
-        buttons.Children.Add(cancel);
-        var panel = new DockPanel();
-        DockPanel.SetDock(buttons, Dock.Bottom);
-        panel.Children.Add(buttons);
-        panel.Children.Add(tb);
-
-        var win = new Window
-        {
-            Title = title, SizeToContent = SizeToContent.Height, Width = 320,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = Window.GetWindow(this),
-            ResizeMode = ResizeMode.NoResize, WindowStyle = WindowStyle.ToolWindow,
-            Background = (Brush)FindResource("Bg"), Content = panel,
-        };
-        string? result = null;
-        ok.Click += (_, _) => { result = tb.Text; win.DialogResult = true; };
-        return win.ShowDialog() == true ? result : null;
-    }
+    private string? PromptText(string title, string initial) => Prompt.Text(this, title, initial);
 
     private static int Clamp(int v) => Math.Clamp(v, 1, 8);
 

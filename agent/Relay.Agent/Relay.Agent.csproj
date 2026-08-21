@@ -8,7 +8,7 @@
     <RootNamespace>Relay.Agent</RootNamespace>
     <AssemblyName>Relay.Agent</AssemblyName>
     <ApplicationIcon>Relay.ico</ApplicationIcon>
-    <Version>0.6.0</Version>
+    <Version>0.6.1</Version>
     <Product>Relay</Product>
     <Description>Relay agent — turns an Android phone into a Stream Deck for Windows</Description>
   </PropertyGroup>
