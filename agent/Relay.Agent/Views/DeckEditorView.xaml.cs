@@ -12,7 +12,7 @@ namespace Relay.Agent.Views;
 public partial class DeckEditorView : UserControl
 {
     private static readonly string[] Types =
-        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Run command" };
+        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Run command", "Hold key (PTT)" };
 
     private readonly AppServices _svc;
     private DeckLayout _work = new();
@@ -242,10 +242,11 @@ public partial class DeckEditorView : UserControl
         LabelBox.Text = b.Label;
         IconBox.SelectedItem = b.Icon;
         ColorBox.Text = b.Color ?? "";
-        var type = DetectType(b.Action);
+        var act = b.Action ?? b.HoldAction;
+        var type = DetectType(act);
         TypeBox.SelectedItem = type;
         BuildParams(type);
-        FillParams(type, b.Action);
+        FillParams(type, act);
         _loading = false;
     }
 
@@ -266,6 +267,7 @@ public partial class DeckEditorView : UserControl
             case "Launch app": AddText("path", "Path / command"); AddText("args", "Arguments (optional)"); break;
             case "Open URL": AddText("url", "URL"); break;
             case "Run command": AddText("command", "Command (cmd)"); AddText("args", "Arguments (optional)"); break;
+            case "Hold key (PTT)": AddText("keys", "Key(s) to hold while pressed (e.g. v)"); break;
         }
     }
 
@@ -298,6 +300,7 @@ public partial class DeckEditorView : UserControl
             case "Launch app": SetVal("path", Str(p, "path")); SetVal("args", Str(p, "args")); break;
             case "Open URL": SetVal("url", Str(p, "url")); break;
             case "Run command": SetVal("command", Str(p, "command")); SetVal("args", Str(p, "args")); break;
+            case "Hold key (PTT)": SetVal("keys", Keys(p, "keys")); break;
             case "Chat macro":
                 if (p.ValueKind == JsonValueKind.Object && p.TryGetProperty("steps", out var steps) && steps.ValueKind == JsonValueKind.Array)
                 {
@@ -354,7 +357,10 @@ public partial class DeckEditorView : UserControl
         b.Label = LabelBox.Text.Trim();
         b.Icon = IconBox.SelectedItem as string;
         b.Color = string.IsNullOrWhiteSpace(ColorBox.Text) ? null : ColorBox.Text.Trim();
-        b.Action = ReadAction(TypeBox.SelectedItem as string ?? "Hotkey");
+        var type = TypeBox.SelectedItem as string ?? "Hotkey";
+        var act = ReadAction(type);
+        if (type == "Hold key (PTT)") { b.HoldAction = act; b.Action = null; }
+        else { b.Action = act; b.HoldAction = null; }
         RebuildGrid();
     }
 
@@ -368,6 +374,7 @@ public partial class DeckEditorView : UserControl
             case "Launch app": verb = "launch"; payload = new { path = Val("path"), args = Val("args") }; break;
             case "Open URL": verb = "open"; payload = new { url = Val("url") }; break;
             case "Run command": provider = "script"; verb = "run"; payload = new { command = Val("command"), args = Val("args") }; break;
+            case "Hold key (PTT)": verb = "holdkey"; payload = new { keys = ParseKeys(Val("keys")) }; break;
             case "Chat macro":
                 provider = "core"; verb = "macro";
                 payload = new
@@ -536,6 +543,7 @@ public partial class DeckEditorView : UserControl
     {
         if (a is null) return "Hotkey";
         if (string.Equals(a.Verb, "macro", StringComparison.OrdinalIgnoreCase)) return "Chat macro";
+        if (string.Equals(a.Verb, "holdkey", StringComparison.OrdinalIgnoreCase)) return "Hold key (PTT)";
         if (string.Equals(a.Provider, "script", StringComparison.OrdinalIgnoreCase)) return "Run command";
         return a.Verb.ToLowerInvariant() switch
         {

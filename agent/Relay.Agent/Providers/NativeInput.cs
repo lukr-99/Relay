@@ -25,6 +25,26 @@ public static class NativeInput
         for (int i = codes.Length - 1; i >= 0; i--) Up(codes[i]);
     }
 
+    /// <summary>Press a chord down and hold it (no release) — for push-to-talk / hold-to-X.</summary>
+    public static void HoldDown(IReadOnlyList<string> keys)
+    {
+        foreach (var k in keys)
+        {
+            var vk = Resolve(k);
+            if (vk != 0) Down(vk);
+        }
+    }
+
+    /// <summary>Release a held chord, in reverse order.</summary>
+    public static void HoldUp(IReadOnlyList<string> keys)
+    {
+        for (int i = keys.Count - 1; i >= 0; i--)
+        {
+            var vk = Resolve(keys[i]);
+            if (vk != 0) Up(vk);
+        }
+    }
+
     /// <summary>Tap a single media/transport key.</summary>
     public static void Media(string cmd)
     {

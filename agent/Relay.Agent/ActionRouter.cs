@@ -30,6 +30,30 @@ public sealed class ActionRouter
         await RunAsync(action, buttonId, ct);
     }
 
+    /// <summary>Handles press-and-hold. A <c>holdkey</c> hold action holds the keys down between
+    /// start and end (push-to-talk); any other hold action just runs once on start.</summary>
+    public async Task HoldAsync(string buttonId, string phase, CancellationToken ct = default)
+    {
+        var button = _layout.Current.FindButton(buttonId);
+        if (button?.HoldAction is not { } action) { _log.Warn($"hold: button '{buttonId}' has no hold action."); return; }
+
+        if (string.Equals(action.Verb, "holdkey", StringComparison.OrdinalIgnoreCase))
+        {
+            var verb = phase == "end" ? "keyup" : "keydown";
+            _log.Info($"hold {buttonId} {phase} -> os.{verb} ({button.Label})");
+            if (_providers.TryGet("os", out var os))
+            {
+                try { await os.InvokeAsync(verb, action.Params, ct); }
+                catch (Exception ex) { _log.Error($"hold failed ({buttonId})", ex); }
+            }
+        }
+        else if (phase != "end")
+        {
+            _log.Info($"hold {buttonId} start -> {action.Provider}.{action.Verb} ({button.Label})");
+            await RunAsync(action, buttonId, ct);
+        }
+    }
+
     /// <summary>Runs one action. <c>verb == "macro"</c> is handled here so its steps can target any
     /// provider; everything else is dispatched to the named provider.</summary>
     public async Task RunAsync(ActionDef action, string ctx, CancellationToken ct = default)

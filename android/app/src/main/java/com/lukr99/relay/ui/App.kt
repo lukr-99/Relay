@@ -43,6 +43,8 @@ fun App(vm: DeckViewModel) {
                         agentName = agentName,
                         cardMinDp = cardMinDp,
                         onPress = vm::press,
+                        onHoldStart = vm::holdStart,
+                        onHoldEnd = vm::holdEnd,
                         onOpenSettings = { showSettings = true },
                     )
                 }

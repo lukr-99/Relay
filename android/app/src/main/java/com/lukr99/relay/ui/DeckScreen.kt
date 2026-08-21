@@ -2,6 +2,10 @@ package com.lukr99.relay.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +49,8 @@ fun DeckScreen(
     agentName: String?,
     cardMinDp: Int,
     onPress: (String) -> Unit,
+    onHoldStart: (String) -> Unit,
+    onHoldEnd: (String) -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val pages = layout.pages.ifEmpty { listOf(Page(id = "p-main", name = "Main")) }
@@ -72,7 +78,7 @@ fun DeckScreen(
         }
 
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { index ->
-            DeckGrid(pages[index], cardMinDp, onPress)
+            DeckGrid(pages[index], cardMinDp, onPress, onHoldStart, onHoldEnd)
         }
 
         if (pages.size > 1) {
@@ -99,7 +105,13 @@ fun DeckScreen(
 }
 
 @Composable
-private fun DeckGrid(page: Page, cardMinDp: Int, onPress: (String) -> Unit) {
+private fun DeckGrid(
+    page: Page,
+    cardMinDp: Int,
+    onPress: (String) -> Unit,
+    onHoldStart: (String) -> Unit,
+    onHoldEnd: (String) -> Unit,
+) {
     val buttons = page.buttons.sortedWith(compareBy({ it.row }, { it.col }))
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = cardMinDp.dp),
@@ -107,25 +119,44 @@ private fun DeckGrid(page: Page, cardMinDp: Int, onPress: (String) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        items(buttons, key = { it.id }) { b -> DeckButton(b, onPress) }
+        items(buttons, key = { it.id }) { b -> DeckButton(b, onPress, onHoldStart, onHoldEnd) }
     }
 }
 
 @Composable
-private fun DeckButton(b: ButtonDef, onPress: (String) -> Unit) {
+private fun DeckButton(
+    b: ButtonDef,
+    onPress: (String) -> Unit,
+    onHoldStart: (String) -> Unit,
+    onHoldEnd: (String) -> Unit,
+) {
     val bg = parseColor(b.color, MaterialTheme.colorScheme.surface)
     val fg = if (bg.luminance() > 0.5f) Color(0xFF10141A) else Color.White
     val haptics = LocalHapticFeedback.current
+    // Buttons with a hold action are push-and-hold (PTT): fire on finger-down, release on up.
+    val gesture = if (b.hasHold != null) {
+        Modifier.pointerInput(b.id) {
+            awaitEachGesture {
+                awaitFirstDown()
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onHoldStart(b.id)
+                waitForUpOrCancellation()
+                onHoldEnd(b.id)
+            }
+        }
+    } else {
+        Modifier.clickable {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            onPress(b.id)
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .clip(RoundedCornerShape(16.dp))
             .background(bg)
-            .clickable {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onPress(b.id)
-            }
+            .then(gesture)
             .padding(8.dp),
         contentAlignment = Alignment.Center,
     ) {

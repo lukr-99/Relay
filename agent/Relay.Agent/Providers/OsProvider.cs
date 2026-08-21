@@ -24,6 +24,16 @@ public sealed class OsProvider : IProvider
                 NativeInput.Media(GetString(p, "cmd") ?? "");
                 break;
 
+            case "keydown":
+                var down = ReadStringArray(p, "keys");
+                if (down.Count > 0) NativeInput.HoldDown(down);
+                break;
+
+            case "keyup":
+                var up = ReadStringArray(p, "keys");
+                if (up.Count > 0) NativeInput.HoldUp(up);
+                break;
+
             case "text":
                 NativeInput.TypeText(GetString(p, "value") ?? "");
                 break;

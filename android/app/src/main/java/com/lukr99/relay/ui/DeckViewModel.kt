@@ -45,6 +45,8 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
     fun disconnect() = client.disconnect()
 
     fun press(buttonId: String) = client.press(buttonId)
+    fun holdStart(buttonId: String) = client.holdStart(buttonId)
+    fun holdEnd(buttonId: String) = client.holdEnd(buttonId)
 
     override fun onCleared() {
         client.disconnect()

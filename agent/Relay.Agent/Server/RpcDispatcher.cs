@@ -66,11 +66,7 @@ public sealed class RpcDispatcher
 
             case "button.hold":
                 if (GetString(p, "id") is { } hid)
-                {
-                    var phase = GetString(p, "phase") ?? "start";
-                    // hold "start" fires the hold action; "end" is a no-op for Phase 0.
-                    if (phase == "start") await _router.PressAsync(hid, hold: true, ct);
-                }
+                    await _router.HoldAsync(hid, GetString(p, "phase") ?? "start", ct);
                 return null;
 
             default:
