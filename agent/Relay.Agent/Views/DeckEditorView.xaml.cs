@@ -380,6 +380,23 @@ public partial class DeckEditorView : UserControl
     // ── helpers ──────────────────────────────────────────────────────────────────────────
     private static string Glyph(string? icon) => icon switch
     {
+        "play_arrow" => "",
+        "pause" => "",
+        "stop" => "",
+        "volume_up" => "",
+        "volume_down" => "",
+        "mic" => "",
+        "photo_camera" => "",
+        "videocam" => "",
+        "folder" => "",
+        "terminal" => "",
+        "refresh" => "",
+        "lock" => "",
+        "home" => "",
+        "settings" => "",
+        "star" => "",
+        "bolt" => "",
+        "power" => "",
         "play_pause" => "",
         "skip_previous" => "",
         "skip_next" => "",

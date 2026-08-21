@@ -6,10 +6,11 @@ public static class IconCatalog
 {
     public static readonly string[] Names =
     {
-        "play_pause", "skip_previous", "skip_next",
-        "volume_off", "mic_off",
-        "content_cut", "chat", "edit_note",
-        "open_in_browser", "keyboard",
+        "play_pause", "play_arrow", "pause", "stop", "skip_previous", "skip_next",
+        "volume_up", "volume_down", "volume_off", "mic", "mic_off",
+        "content_cut", "photo_camera", "videocam",
+        "chat", "edit_note", "keyboard", "open_in_browser", "folder", "terminal",
+        "refresh", "lock", "home", "settings", "star", "bolt", "power",
         "touch_app",
     };
 }
