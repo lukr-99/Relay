@@ -38,7 +38,7 @@ fun PairScreen(
     initialHost: String,
     initialPort: Int,
     initialToken: String,
-    onConnect: (host: String, port: Int, token: String) -> Unit,
+    onConnect: (host: String, port: Int, token: String, fp: String) -> Unit,
 ) {
     val context = LocalContext.current
     var host by remember { mutableStateOf(initialHost) }
@@ -59,9 +59,10 @@ fun PairScreen(
                 val h = uri?.getQueryParameter("host")
                 val p = uri?.getQueryParameter("port")?.toIntOrNull() ?: 8731
                 val t = uri?.getQueryParameter("token")
+                val f = uri?.getQueryParameter("fp") ?: ""
                 if (!h.isNullOrBlank() && !t.isNullOrBlank()) {
                     host = h; port = p.toString(); token = t
-                    onConnect(h, p, t)
+                    onConnect(h, p, t, f)
                 } else {
                     scanError = "That isn't a Relay pairing code."
                 }
@@ -118,7 +119,7 @@ fun PairScreen(
         )
         Spacer(Modifier.height(20.dp))
         Button(
-            onClick = { onConnect(host.trim(), port.toIntOrNull() ?: 8731, token.trim()) },
+            onClick = { onConnect(host.trim(), port.toIntOrNull() ?: 8731, token.trim(), "") },
             enabled = host.isNotBlank() && token.isNotBlank() && state !is ConnState.Connecting,
             modifier = Modifier.fillMaxWidth(),
         ) { Text(if (state is ConnState.Connecting) "Connecting…" else "Connect") }

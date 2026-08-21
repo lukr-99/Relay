@@ -20,7 +20,14 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.security.cert.CertificateException
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 import kotlin.math.min
 
 sealed interface ConnState {
@@ -36,12 +43,9 @@ sealed interface ConnState {
  * back on its own without re-pairing.
  */
 class DeckClient {
-    private val http = OkHttpClient.Builder()
-        .pingInterval(20, TimeUnit.SECONDS)
-        .build()
-
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    private var http: OkHttpClient? = null
     private var socket: WebSocket? = null
     private var reconnectJob: Job? = null
     private var wantConnected = false
@@ -51,6 +55,8 @@ class DeckClient {
     private var port = 8731
     private var token = ""
     private var deviceName = "Android"
+    private var pinnedFp = ""
+    private var onPin: (String) -> Unit = {}
 
     private val helloId = 1
     private val layoutId = 2
@@ -68,8 +74,9 @@ class DeckClient {
     private val _states = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val states: StateFlow<Map<String, Boolean>> = _states.asStateFlow()
 
-    fun connect(host: String, port: Int, token: String, deviceName: String) {
+    fun connect(host: String, port: Int, token: String, deviceName: String, pinnedFp: String, onPin: (String) -> Unit) {
         this.host = host; this.port = port; this.token = token; this.deviceName = deviceName
+        this.pinnedFp = pinnedFp; this.onPin = onPin
         wantConnected = true
         attempt = 0
         reconnectJob?.cancel()
@@ -79,11 +86,37 @@ class DeckClient {
     private fun open() {
         socket?.cancel()
         _state.value = ConnState.Connecting
+        val client = buildClient(pinnedFp, onPin)
+        http = client
         val request = Request.Builder()
-            .url("ws://$host:$port/rpc")
+            .url("wss://$host:$port/rpc")
             .header("Authorization", "Bearer $token")
             .build()
-        socket = http.newWebSocket(request, Listener())
+        socket = client.newWebSocket(request, Listener())
+    }
+
+    /** OkHttp client that pins the agent's self-signed cert by SHA-256. If [pinned] is blank it
+     *  trusts on first use and reports the fingerprint via [onPin] so it can be saved and pinned next time. */
+    private fun buildClient(pinned: String, onPin: (String) -> Unit): OkHttpClient {
+        val tm = object : X509TrustManager {
+            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+                val cert = chain?.firstOrNull() ?: throw CertificateException("no server certificate")
+                val sha = MessageDigest.getInstance("SHA-256").digest(cert.encoded)
+                    .joinToString("") { "%02x".format(it) }
+                if (pinned.isBlank()) onPin(sha)
+                else if (!sha.equals(pinned, ignoreCase = true))
+                    throw CertificateException("certificate fingerprint mismatch")
+            }
+            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
+            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+        }
+        val ctx = SSLContext.getInstance("TLS")
+        ctx.init(null, arrayOf<TrustManager>(tm), SecureRandom())
+        return OkHttpClient.Builder()
+            .pingInterval(20, TimeUnit.SECONDS)
+            .sslSocketFactory(ctx.socketFactory, tm)
+            .hostnameVerifier { _, _ -> true } // self-signed; security is the pinned fingerprint
+            .build()
     }
 
     fun disconnect() {

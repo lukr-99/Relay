@@ -34,8 +34,8 @@ public static class Pairing
         return "127.0.0.1";
     }
 
-    public static string BuildUri(string host, int port, string token, string agentId)
-        => $"relay://pair?host={host}&port={port}&token={Uri.EscapeDataString(token)}&id={agentId}";
+    public static string BuildUri(string host, int port, string token, string agentId, string fp)
+        => $"relay://pair?host={host}&port={port}&token={Uri.EscapeDataString(token)}&id={agentId}&fp={fp}";
 
     public static Bitmap Qr(string text)
     {

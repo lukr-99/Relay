@@ -36,7 +36,8 @@ class MainActivity : ComponentActivity() {
                     val host = u.getQueryParameter("host")
                     val port = u.getQueryParameter("port")?.toIntOrNull() ?: 8731
                     val token = u.getQueryParameter("token")
-                    if (!host.isNullOrBlank() && !token.isNullOrBlank()) vm.connect(host, port, token)
+                    val fp = u.getQueryParameter("fp") ?: ""
+                    if (!host.isNullOrBlank() && !token.isNullOrBlank()) vm.connect(host, port, token, fp)
                     pairUri.value = null
                 }
                 App(vm)

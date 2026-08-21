@@ -20,15 +20,17 @@ public sealed class DeckServer : IDisposable
     private readonly SessionManager _sessions;
     private readonly LayoutStore _layout;
     private readonly RpcDispatcher _dispatcher;
+    private readonly Cert _cert;
     private readonly Log _log;
     private WebApplication? _app;
 
     public DeckServer(AppConfig config, LayoutStore layout, ActionRouter router, SessionManager sessions,
-        Providers.ProviderRegistry providers, Log log)
+        Providers.ProviderRegistry providers, Cert cert, Log log)
     {
         _config = config;
         _sessions = sessions;
         _layout = layout;
+        _cert = cert;
         _log = log;
         _dispatcher = new RpcDispatcher(config, layout, router, providers, log);
         _layout.Changed += OnLayoutChanged;
@@ -46,7 +48,8 @@ public sealed class DeckServer : IDisposable
     {
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
-        builder.WebHost.ConfigureKestrel(k => k.ListenAnyIP(_config.Port));
+        builder.WebHost.ConfigureKestrel(k =>
+            k.ListenAnyIP(_config.Port, listen => listen.UseHttps(_cert.Certificate)));
 
         var app = builder.Build();
         app.UseWebSockets();
@@ -55,7 +58,7 @@ public sealed class DeckServer : IDisposable
 
         _app = app;
         _ = app.RunAsync();
-        _log.Info($"WebSocket server listening on ws://0.0.0.0:{_config.Port}/rpc");
+        _log.Info($"WebSocket server listening on wss://0.0.0.0:{_config.Port}/rpc");
     }
 
     private async Task HandleAsync(HttpContext ctx)

@@ -6,9 +6,6 @@ import androidx.lifecycle.AndroidViewModel
 import com.lukr99.relay.net.ConnState
 import com.lukr99.relay.net.DeckClient
 import com.lukr99.relay.settings.PairingStore
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 /** Owns the [DeckClient] and the remembered pairing. The UI observes the client's state flows. */
 class DeckViewModel(app: Application) : AndroidViewModel(app) {
@@ -19,27 +16,20 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
     val savedPort get() = store.port
     val savedToken get() = store.token
 
-    private val _cardMinDp = MutableStateFlow(store.cardMinDp)
-    val cardMinDp: StateFlow<Int> = _cardMinDp.asStateFlow()
-
-    fun setCardMinDp(dp: Int) {
-        store.cardMinDp = dp
-        _cardMinDp.value = dp
-    }
-
     private val deviceName: String =
         listOf(Build.MANUFACTURER, Build.MODEL).filter { it.isNotBlank() }.joinToString(" ").ifBlank { "Android" }
 
     init {
         // Reconnect to the last-used agent automatically on launch.
         if (store.host.isNotBlank() && store.token.isNotBlank()) {
-            client.connect(store.host, store.port, store.token, deviceName)
+            client.connect(store.host, store.port, store.token, deviceName, store.fp) { store.fp = it }
         }
     }
 
-    fun connect(host: String, port: Int, token: String) {
-        store.save(host.trim(), port, token.trim())
-        client.connect(host.trim(), port, token.trim(), deviceName)
+    fun connect(host: String, port: Int, token: String, fp: String) {
+        val h = host.trim(); val t = token.trim(); val f = fp.trim()
+        store.save(h, port, t, f)
+        client.connect(h, port, t, deviceName, f) { store.fp = it }
     }
 
     fun disconnect() = client.disconnect()

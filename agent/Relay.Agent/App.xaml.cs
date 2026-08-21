@@ -22,11 +22,12 @@ public partial class App : Application
         var log = new Log(config.LogPath);
         log.Info($"Relay agent 0.2.0 starting — id={config.AgentId} port={config.Port}");
 
+        var cert = Cert.LoadOrCreate(config, log);
         var layout = new LayoutStore(config, log);
         var providers = new ProviderRegistry(config, log);
         var router = new ActionRouter(providers, layout, log);
         var sessions = new SessionManager();
-        var server = new DeckServer(config, layout, router, sessions, providers, log);
+        var server = new DeckServer(config, layout, router, sessions, providers, cert, log);
         server.Start();
         var mdns = new MdnsAdvertiser(config, log);
         mdns.Start();
@@ -34,7 +35,7 @@ public partial class App : Application
         _svc = new AppServices
         {
             Config = config, Log = log, Layout = layout, Providers = providers,
-            Router = router, Sessions = sessions, Server = server, Mdns = mdns,
+            Router = router, Sessions = sessions, Server = server, Mdns = mdns, Cert = cert,
         };
 
         _tray = new TrayIcon(_svc, ShowMain, QuitApp);

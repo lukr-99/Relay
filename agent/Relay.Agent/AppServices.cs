@@ -16,4 +16,5 @@ public sealed class AppServices
     public required SessionManager Sessions { get; init; }
     public required DeckServer Server { get; init; }
     public required MdnsAdvertiser Mdns { get; init; }
+    public required Cert Cert { get; init; }
 }

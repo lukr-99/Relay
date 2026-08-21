@@ -18,16 +18,22 @@ class PairingStore(context: Context) {
         get() = prefs.getString("token", "") ?: ""
         set(v) = prefs.edit().putString("token", v).apply()
 
+    /** Pinned SHA-256 fingerprint of the agent's cert (from the QR, or learned on first connect). */
+    var fp: String
+        get() = prefs.getString("fp", "") ?: ""
+        set(v) = prefs.edit().putString("fp", v).apply()
+
     /** Minimum card edge in dp — drives the adaptive grid (smaller = more/tighter cards). */
     var cardMinDp: Int
         get() = prefs.getInt("cardMinDp", 96)
         set(v) = prefs.edit().putInt("cardMinDp", v).apply()
 
-    fun save(host: String, port: Int, token: String) {
+    fun save(host: String, port: Int, token: String, fp: String) {
         prefs.edit()
             .putString("host", host)
             .putInt("port", port)
             .putString("token", token)
+            .putString("fp", fp)
             .apply()
     }
 }

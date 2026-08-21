@@ -25,13 +25,13 @@ public partial class DevicesView : UserControl
         _svc = svc;
 
         var ip = Pairing.Pairing.LocalIpv4();
-        _uri = Pairing.Pairing.BuildUri(ip, svc.Config.Port, svc.Config.Token, svc.Config.AgentId);
+        _uri = Pairing.Pairing.BuildUri(ip, svc.Config.Port, svc.Config.Token, svc.Config.AgentId, svc.Cert.FingerprintHex);
 
         using (var bmp = Pairing.Pairing.Qr(_uri))
             Qr.Source = ToImageSource(bmp);
 
         HostLine.Text = $"Host    {ip}";
-        PortLine.Text = $"Port    {svc.Config.Port}";
+        PortLine.Text = $"Port    {svc.Config.Port}   (secured · WSS)";
         TokenLine.Text = $"Token   {svc.Config.Token}";
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
