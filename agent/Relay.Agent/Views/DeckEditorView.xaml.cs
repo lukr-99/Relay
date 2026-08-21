@@ -417,6 +417,26 @@ public partial class DeckEditorView : UserControl
         Select(null);
     }
 
+    private void Duplicate_Click(object sender, RoutedEventArgs e)
+    {
+        ApplySelected();
+        var src = _selectedId is null ? null : _page.Buttons.FirstOrDefault(b => b.Id == _selectedId);
+        if (src is null) return;
+        int cols = ColsBox.SelectedItem is int c ? c : 4;
+        int rows = RowsBox.SelectedItem is int r ? r : 3;
+        var free = FirstFree(cols, rows);
+        if (free is not { } cell) { MessageBox.Show("The grid is full — add rows/cols first.", "Relay"); return; }
+
+        var clone = JsonSerializer.Deserialize<ButtonDef>(
+            JsonSerializer.Serialize(src, LayoutStore.Json), LayoutStore.Json)!;
+        clone.Id = "b-" + Guid.NewGuid().ToString("n")[..6];
+        clone.Row = cell.Item1;
+        clone.Col = cell.Item2;
+        _page.Buttons.Add(clone);
+        RebuildGrid();
+        Select(clone.Id);
+    }
+
     private void Grid_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_loading) return;

@@ -16,6 +16,7 @@
                 <TextBlock Text="Rows" VerticalAlignment="Center" Foreground="{StaticResource TextMuted}" Margin="14,0,6,0"/>
                 <ComboBox x:Name="RowsBox" Width="58" SelectionChanged="Grid_Changed"/>
                 <Button Content="Add button" Margin="16,0,0,0" Click="Add_Click"/>
+                <Button Content="Duplicate" Margin="8,0,0,0" Click="Duplicate_Click"/>
                 <Button Content="Save &amp; Push" Style="{StaticResource AccentButton}" Margin="8,0,0,0" Click="Save_Click"/>
             </StackPanel>
         </DockPanel>
