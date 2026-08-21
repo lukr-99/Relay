@@ -55,6 +55,15 @@
                     </StackPanel>
                     <TextBlock DockPanel.Dock="Top" x:Name="Hint" Text="Drag buttons to arrange them. Click a button to edit it."
                                Style="{StaticResource Muted}" Margin="2,0,0,12"/>
+                    <!-- Slider row authoring (deck-wide; drives a MicForge param) -->
+                    <StackPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+                        <DockPanel Margin="0,0,0,6">
+                            <TextBlock Text="Sliders" FontWeight="SemiBold" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                            <Button Content="＋ Add MicForge slider" HorizontalAlignment="Right" Click="AddSlider_Click"/>
+                        </DockPanel>
+                        <StackPanel x:Name="SlidersHost"/>
+                        <TextBlock x:Name="SlidersHint" Style="{StaticResource Muted}" Margin="0,4,0,0"/>
+                    </StackPanel>
                     <Viewbox Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Border Background="{StaticResource Bg}" CornerRadius="20" Padding="14">
                             <UniformGrid x:Name="GridHost"/>

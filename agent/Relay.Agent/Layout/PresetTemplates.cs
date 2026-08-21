@@ -28,7 +28,23 @@ public static class PresetTemplates
                 },
             },
         },
+        Sliders =
+        {
+            Slider("mf-gain", "Input Gain", -24, 24, 0.5, " dB", "#2980b9", "Input Gain|Gain"),
+        },
     };
+
+    private static SliderDef Slider(string id, string label, double min, double max, double step,
+        string unit, string color, string key)
+        => new()
+        {
+            Id = id, Label = label, Min = min, Max = max, Step = step, Unit = unit, Color = color,
+            Action = new ActionDef
+            {
+                Provider = "micforge", Verb = "param",
+                Params = JsonSerializer.SerializeToElement(new { key }, LayoutStore.Json),
+            },
+        };
 
     private static ButtonDef Btn(string id, int row, int col, string label, string icon, string color, string verb)
         => new()

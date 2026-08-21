@@ -57,6 +57,7 @@ public partial class DeckEditorView : UserControl
 
         PopulatePresets(_svc.Layout.ActivePreset);
         RebuildGrid();
+        PopulateSliders();
         Select(null);
     }
 
@@ -688,7 +689,120 @@ public partial class DeckEditorView : UserControl
         _work.Grid.Cols = ColsBox.SelectedItem is int c ? c : 4;
         _work.Grid.Rows = RowsBox.SelectedItem is int r ? r : 3;
         if (string.IsNullOrEmpty(_work.ActivePage)) _work.ActivePage = _page.Id;
+        _work.Sliders = ReadSliders();
         _svc.Layout.Save(_work);
+    }
+
+    // ── sliders ──────────────────────────────────────────────────────────────────────────
+    private readonly List<SliderRow> _sliderRows = new();
+
+    private void PopulateSliders()
+    {
+        SlidersHost.Children.Clear();
+        _sliderRows.Clear();
+        foreach (var sl in _work.Sliders) AddSliderRow(sl);
+        SlidersHint.Text = _svc.Providers.MicForge.KnownParams.Count == 0
+            ? "Start MicForge to pick a parameter for a slider."
+            : (_work.Sliders.Count == 0 ? "Add a slider to control a MicForge parameter from the phone." : "");
+    }
+
+    private void AddSlider_Click(object sender, RoutedEventArgs e)
+    {
+        AddSliderRow(null);
+        SlidersHint.Text = _svc.Providers.MicForge.KnownParams.Count == 0
+            ? "Start MicForge, then pick a parameter." : "";
+    }
+
+    private void AddSliderRow(SliderDef? existing)
+    {
+        var grid = new System.Windows.Controls.Grid { Margin = new Thickness(0, 3, 0, 0) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.4, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+
+        var labelBox = new TextBox { Text = existing?.Label ?? "" };
+        var paramBox = new ComboBox { Margin = new Thickness(6, 0, 0, 0) };
+        foreach (var p in _svc.Providers.MicForge.KnownParams) paramBox.Items.Add(new ParamChoice(p));
+
+        // Preserve an existing binding even if MicForge is offline (its metadata lives on the def).
+        var existingKey = existing is null ? null : SliderKey(existing);
+        if (existingKey is not null)
+        {
+            var match = paramBox.Items.Cast<ParamChoice>().FirstOrDefault(c => c.Key == existingKey);
+            if (match is null)
+            {
+                match = ParamChoice.FromDef(existing!, existingKey);
+                paramBox.Items.Add(match);
+            }
+            paramBox.SelectedItem = match;
+        }
+
+        var del = new Button { Content = "✕", Margin = new Thickness(6, 0, 0, 0), ToolTip = "Remove slider" };
+        var row = new SliderRow { Grid = grid, Label = labelBox, Param = paramBox, Id = existing?.Id ?? NewSliderId(), Color = existing?.Color };
+
+        paramBox.SelectionChanged += (_, _) =>
+        {
+            if (paramBox.SelectedItem is ParamChoice pc && string.IsNullOrWhiteSpace(labelBox.Text))
+                labelBox.Text = pc.Info.Label;
+        };
+        del.Click += (_, _) => { SlidersHost.Children.Remove(grid); _sliderRows.Remove(row); };
+
+        System.Windows.Controls.Grid.SetColumn(labelBox, 0);
+        System.Windows.Controls.Grid.SetColumn(paramBox, 1);
+        System.Windows.Controls.Grid.SetColumn(del, 2);
+        grid.Children.Add(labelBox);
+        grid.Children.Add(paramBox);
+        grid.Children.Add(del);
+
+        _sliderRows.Add(row);
+        SlidersHost.Children.Add(grid);
+    }
+
+    private List<SliderDef> ReadSliders()
+    {
+        var list = new List<SliderDef>();
+        foreach (var r in _sliderRows)
+        {
+            if (r.Param.SelectedItem is not ParamChoice pc) continue;
+            var info = pc.Info;
+            list.Add(new SliderDef
+            {
+                Id = r.Id,
+                Label = string.IsNullOrWhiteSpace(r.Label.Text) ? info.Label : r.Label.Text.Trim(),
+                Min = info.Min, Max = info.Max, Step = info.Step, Unit = info.Unit,
+                Color = string.IsNullOrWhiteSpace(r.Color) ? "#2980b9" : r.Color,
+                Value = info.Value,
+                Action = new ActionDef { Provider = "micforge", Verb = "param", Params = JsonSerializer.SerializeToElement(new { key = pc.Key }, LayoutStore.Json) },
+            });
+        }
+        return list;
+    }
+
+    private static string NewSliderId() => "sl-" + Guid.NewGuid().ToString("n")[..8];
+
+    private static string? SliderKey(SliderDef s)
+        => s.Action?.Params.ValueKind == JsonValueKind.Object && s.Action.Params.TryGetProperty("key", out var k) && k.ValueKind == JsonValueKind.String
+            ? k.GetString() : null;
+
+    private sealed class SliderRow
+    {
+        public required System.Windows.Controls.Grid Grid;
+        public required TextBox Label;
+        public required ComboBox Param;
+        public string Id = "";
+        public string? Color;
+    }
+
+    /// <summary>A MicForge param option in a slider's dropdown ("Stage · Label"), carrying its range.</summary>
+    private sealed class ParamChoice
+    {
+        public ParamChoice(Providers.MicForgeProvider.ParamInfo info) { Info = info; }
+        public Providers.MicForgeProvider.ParamInfo Info { get; }
+        public string Key => Info.Key;
+        public override string ToString() => string.IsNullOrEmpty(Info.Stage) ? Info.Label : $"{Info.Stage} · {Info.Label}";
+
+        public static ParamChoice FromDef(SliderDef s, string key)
+            => new(new Providers.MicForgeProvider.ParamInfo(key, "", s.Label, s.Value, s.Min, s.Max, s.Step, s.Unit ?? ""));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────────────
