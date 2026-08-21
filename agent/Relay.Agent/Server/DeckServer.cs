@@ -40,6 +40,7 @@ public sealed class DeckServer : IDisposable
         router.OnButtonState = pushState;
         providers.MicForge.OnButtonState = pushState;
         providers.MicForge.OnButtonLevel = (id, level) => _sessions.BroadcastAsync(RpcDispatcher.ButtonLevelNotification(id, level));
+        providers.MicForge.OnSliderValue = (id, value) => _sessions.BroadcastAsync(RpcDispatcher.SliderValueNotification(id, value));
     }
 
     private void OnLayoutChanged()

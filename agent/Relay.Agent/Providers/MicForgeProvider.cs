@@ -33,8 +33,14 @@ public sealed class MicForgeProvider : IProvider, IDisposable
     /// <summary>Set by the server: pushes a button.level (0..1) to phones for a live meter badge.</summary>
     public Func<string, double, Task>? OnButtonLevel;
 
+    /// <summary>Set by the server: pushes a slider.value to phones so a slider reflects the real param.</summary>
+    public Func<string, double, Task>? OnSliderValue;
+
     /// <summary>The DSP stages MicForge last reported (id + display title), for the editor's stage picker.</summary>
     public IReadOnlyList<StageInfo> KnownStages { get; private set; } = Array.Empty<StageInfo>();
+
+    /// <summary>The DSP parameters MicForge last reported, for the editor's slider param picker.</summary>
+    public IReadOnlyList<ParamInfo> KnownParams { get; private set; } = Array.Empty<ParamInfo>();
 
     public MicForgeProvider(LayoutStore layout, Log log)
     {
@@ -55,6 +61,7 @@ public sealed class MicForgeProvider : IProvider, IDisposable
             "startstop" => JsonSerializer.Serialize(new { op = "toggle", target = "running" }),
             "preset" => PresetCommand(p),
             "stage" => StageCommand(p),
+            "param" => ParamCommand(p),
             "meter" => null,   // a meter button has no press action; it just displays the live level
             _ => null,
         };
@@ -98,6 +105,15 @@ public sealed class MicForgeProvider : IProvider, IDisposable
         return JsonSerializer.Serialize(new { op = "stage", id });
     }
 
+    /// <summary>Set a DSP param to an absolute value: <c>{key, value}</c> → MicForge <c>param</c> op.</summary>
+    private static string? ParamCommand(JsonElement p)
+    {
+        if (p.ValueKind != JsonValueKind.Object) return null;
+        if (!p.TryGetProperty("key", out var k) || k.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(k.GetString())) return null;
+        if (!p.TryGetProperty("value", out var v) || v.ValueKind != JsonValueKind.Number) return null;
+        return JsonSerializer.Serialize(new { op = "param", key = k.GetString(), value = v.GetDouble() });
+    }
+
     // ── connection loop ──────────────────────────────────────────────────────────────────────
     private async Task RunAsync(CancellationToken ct)
     {
@@ -130,6 +146,7 @@ public sealed class MicForgeProvider : IProvider, IDisposable
                 _last = null;
                 _meterWanted = false;
                 KnownStages = Array.Empty<StageInfo>();
+                KnownParams = Array.Empty<ParamInfo>();
                 ClearButtonStates();
             }
 
@@ -156,12 +173,14 @@ public sealed class MicForgeProvider : IProvider, IDisposable
     {
         var stages = ParseStages(root);
         KnownStages = stages;
+        KnownParams = ParseParams(root);
         var s = new State(
             Bool(root, "mute"), Bool(root, "bypass"), Bool(root, "running"),
             root.TryGetProperty("preset", out var pr) && pr.ValueKind == JsonValueKind.String ? pr.GetString() ?? "" : "",
             stages);
         _last = s;
         PushButtonStates(s);
+        PushSliderValues();
     }
 
     private void HandleMeter(JsonElement root)
@@ -190,12 +209,48 @@ public sealed class MicForgeProvider : IProvider, IDisposable
         return list;
     }
 
+    private static IReadOnlyList<ParamInfo> ParseParams(JsonElement root)
+    {
+        if (!root.TryGetProperty("params", out var arr) || arr.ValueKind != JsonValueKind.Array)
+            return Array.Empty<ParamInfo>();
+        var list = new List<ParamInfo>();
+        foreach (var e in arr.EnumerateArray())
+        {
+            if (e.ValueKind != JsonValueKind.Object) continue;
+            var key = Str(e, "key");
+            if (string.IsNullOrEmpty(key)) continue;
+            list.Add(new ParamInfo(key, Str(e, "stage"), Str(e, "label"),
+                Num(e, "value"), Num(e, "min"), Num(e, "max"), Num(e, "step"), Str(e, "unit")));
+        }
+        return list;
+    }
+
+    /// <summary>Push each MicForge-bound slider's current param value to phones (initial sync + updates).</summary>
+    private void PushSliderValues()
+    {
+        if (OnSliderValue is not { } push) return;
+        foreach (var sl in _layout.Current.Sliders)
+        {
+            if (sl.Action is not { } a || !string.Equals(a.Provider, Id, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(a.Verb, "param", StringComparison.OrdinalIgnoreCase)) continue;
+            var key = ParamKeyOf(a.Params);
+            if (key is null) continue;
+            foreach (var pi in KnownParams)
+                if (string.Equals(pi.Key, key, StringComparison.Ordinal)) { _ = push(sl.Id, pi.Value); break; }
+        }
+    }
+
+    private static string? ParamKeyOf(JsonElement p)
+        => p.ValueKind == JsonValueKind.Object && p.TryGetProperty("key", out var v) && v.ValueKind == JsonValueKind.String
+            ? v.GetString() : null;
+
     // ── deck mirroring ───────────────────────────────────────────────────────────────────────
     /// <summary>Re-push the last known MicForge state — called when a phone (re)connects.</summary>
     public void RepushState()
     {
         if (_last is { } s) PushButtonStates(s);
         else ClearButtonStates();
+        PushSliderValues();
     }
 
     private void PushButtonStates(State s)
@@ -246,6 +301,12 @@ public sealed class MicForgeProvider : IProvider, IDisposable
     private static bool Bool(JsonElement e, string name)
         => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
 
+    private static string Str(JsonElement e, string name)
+        => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+
+    private static double Num(JsonElement e, string name)
+        => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0.0;
+
     private static string? PresetName(JsonElement p)
         => p.ValueKind == JsonValueKind.Object && p.TryGetProperty("name", out var v) && v.ValueKind == JsonValueKind.String
             ? v.GetString() : null;
@@ -281,4 +342,9 @@ public sealed class MicForgeProvider : IProvider, IDisposable
     /// <summary>A DSP stage MicForge reports: stable <paramref name="Id"/> (processor name) + display
     /// <paramref name="Title"/>, its current enabled state, and whether it can be toggled at all.</summary>
     public readonly record struct StageInfo(string Id, string Title, bool Enabled, bool CanToggle);
+
+    /// <summary>A MicForge DSP parameter: stable <paramref name="Key"/> ("stageId|label"), its display
+    /// stage/label, current value, and range for a slider.</summary>
+    public readonly record struct ParamInfo(string Key, string Stage, string Label,
+        double Value, double Min, double Max, double Step, string Unit);
 }

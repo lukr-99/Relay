@@ -89,6 +89,10 @@ class DeckClient {
     private val _levels = MutableStateFlow<Map<String, Float>>(emptyMap())
     val levels: StateFlow<Map<String, Float>> = _levels.asStateFlow()
 
+    // Live slider values pushed by the agent (slider id -> value), for the slider row.
+    private val _sliderValues = MutableStateFlow<Map<String, Float>>(emptyMap())
+    val sliderValues: StateFlow<Map<String, Float>> = _sliderValues.asStateFlow()
+
     fun connect(host: String, port: Int, token: String, deviceName: String, pinnedFp: String,
                 onPin: (String) -> Unit, onAgentId: (String) -> Unit = {}) {
         this.host = host; this.port = port; this.token = token; this.deviceName = deviceName
@@ -148,6 +152,7 @@ class DeckClient {
     fun holdStart(buttonId: String) { socket?.send(Rpc.hold(buttonId, "start")) }
     fun holdEnd(buttonId: String) { socket?.send(Rpc.hold(buttonId, "end")) }
     fun selectPreset(name: String) { socket?.send(Rpc.presetSelect(name)) }
+    fun setSlider(id: String, value: Float) { socket?.send(Rpc.sliderSet(id, value)) }
 
     private fun scheduleReconnect() {
         if (!wantConnected || reconnectJob?.isActive == true) return
@@ -166,6 +171,7 @@ class DeckClient {
             _state.value = ConnState.Connected
             _states.value = emptyMap()
             _levels.value = emptyMap()
+            _sliderValues.value = emptyMap()
             webSocket.send(Rpc.hello(helloId, deviceName, "android"))
             webSocket.send(Rpc.getLayout(layoutId))
             webSocket.send(Rpc.presetList(presetId))
@@ -199,6 +205,13 @@ class DeckClient {
                 val bid = (prm["id"] as? JsonPrimitive)?.contentOrNull() ?: return
                 val lvl = (prm["level"] as? JsonPrimitive)?.let { runCatching { it.float }.getOrNull() } ?: 0f
                 _levels.value = _levels.value + (bid to lvl.coerceIn(0f, 1f))
+                return
+            }
+            if (method == "slider.value") {
+                val prm = msg["params"] as? JsonObject ?: return
+                val sid = (prm["id"] as? JsonPrimitive)?.contentOrNull() ?: return
+                val v = (prm["value"] as? JsonPrimitive)?.let { runCatching { it.float }.getOrNull() } ?: return
+                _sliderValues.value = _sliderValues.value + (sid to v)
                 return
             }
 

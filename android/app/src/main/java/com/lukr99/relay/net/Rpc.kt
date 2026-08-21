@@ -23,6 +23,19 @@ data class Layout(
     val grid: Grid = Grid(),
     val activePage: String? = null,
     val pages: List<Page> = emptyList(),
+    val sliders: List<Slider> = emptyList(),
+)
+
+@Serializable
+data class Slider(
+    val id: String = "",
+    val label: String = "",
+    val min: Float = 0f,
+    val max: Float = 100f,
+    val step: Float = 1f,
+    val unit: String? = null,
+    val color: String? = null,
+    val value: Float = 0f,
 )
 
 @Serializable
@@ -88,5 +101,11 @@ object Rpc {
         DeckJson.encodeToString(JsonObject.serializer(), buildJsonObject {
             put("jsonrpc", "2.0"); put("method", "preset.select")
             putJsonObject("params") { put("name", name) }
+        })
+
+    fun sliderSet(id: String, value: Float): String =
+        DeckJson.encodeToString(JsonObject.serializer(), buildJsonObject {
+            put("jsonrpc", "2.0"); put("method", "slider.set")
+            putJsonObject("params") { put("id", id); put("value", value) }
         })
 }

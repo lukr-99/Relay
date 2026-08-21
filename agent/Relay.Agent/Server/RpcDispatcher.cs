@@ -72,6 +72,11 @@ public sealed class RpcDispatcher
             case "preset.list":
                 return Result(id, new { presets = _layout.Presets, active = _layout.ActivePreset });
 
+            case "slider.set":
+                if (GetString(p, "id") is { } sid && TryGetDouble(p, "value", out var sval))
+                    await _router.SetSliderAsync(sid, sval, ct);
+                return null; // notification
+
             case "preset.select":
                 {
                     var name = GetString(p, "name");
@@ -96,6 +101,10 @@ public sealed class RpcDispatcher
     public static string ButtonLevelNotification(string id, double level)
         => JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "button.level", @params = new { id, level } }, Wire);
 
+    /// <summary>Builds a <c>slider.value</c> notification so a slider reflects its target param's value.</summary>
+    public static string SliderValueNotification(string id, double value)
+        => JsonSerializer.Serialize(new { jsonrpc = "2.0", method = "slider.value", @params = new { id, value } }, Wire);
+
     /// <summary>Builds a <c>preset.changed</c> notification so a phone's picker stays in sync when the
     /// active preset switches or the preset set changes (renamed/created/deleted in the editor).</summary>
     public static string PresetChangedNotification(IReadOnlyList<string> presets, string active)
@@ -110,6 +119,14 @@ public sealed class RpcDispatcher
     private static string? GetString(JsonElement p, string name)
         => p.ValueKind == JsonValueKind.Object && p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
             ? v.GetString() : null;
+
+    private static bool TryGetDouble(JsonElement p, string name, out double value)
+    {
+        value = 0;
+        if (p.ValueKind == JsonValueKind.Object && p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number)
+        { value = v.GetDouble(); return true; }
+        return false;
+    }
 
     private static string? TryGetPath(JsonElement p, string a, string b)
         => p.ValueKind == JsonValueKind.Object && p.TryGetProperty(a, out var inner) ? GetString(inner, b) : null;

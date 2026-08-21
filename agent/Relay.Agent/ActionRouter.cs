@@ -58,6 +58,30 @@ public sealed class ActionRouter
         }
     }
 
+    /// <summary>Drives a slider: routes its action to the owning provider with the dragged
+    /// <paramref name="value"/> merged into the action params (e.g. MicForge param set).</summary>
+    public async Task SetSliderAsync(string sliderId, double value, CancellationToken ct = default)
+    {
+        var slider = _layout.Current.Sliders.FirstOrDefault(s => s.Id == sliderId);
+        if (slider?.Action is not { } action) { _log.Warn($"slider: unknown or unbound '{sliderId}'."); return; }
+        if (!_providers.TryGet(action.Provider, out var provider)) { _log.Warn($"slider: no provider '{action.Provider}'."); return; }
+
+        var merged = MergeValue(action.Params, value);
+        try { await provider.InvokeAsync(action.Verb, merged, ct); }
+        catch (Exception ex) { _log.Error($"slider failed ({sliderId})", ex); }
+    }
+
+    /// <summary>Returns a copy of <paramref name="obj"/> with a numeric <c>value</c> field set.</summary>
+    private static JsonElement MergeValue(JsonElement obj, double value)
+    {
+        var node = new Dictionary<string, object?>();
+        if (obj.ValueKind == JsonValueKind.Object)
+            foreach (var pr in obj.EnumerateObject())
+                node[pr.Name] = pr.Value.Clone();
+        node["value"] = value;
+        return JsonSerializer.SerializeToElement(node, LayoutStore.Json);
+    }
+
     /// <summary>Runs one action. <c>verb == "macro"</c> is handled here so its steps can target any
     /// provider; everything else is dispatched to the named provider.</summary>
     public async Task RunAsync(ActionDef action, string ctx, CancellationToken ct = default)

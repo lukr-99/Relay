@@ -11,6 +11,9 @@ public sealed class DeckLayout
     public string? ActivePage { get; set; }
     public List<Page> Pages { get; set; } = new();
 
+    /// <summary>Continuous controls shown as a row under the deck (e.g. MicForge gain). Deck-wide.</summary>
+    public List<SliderDef> Sliders { get; set; } = new();
+
     [JsonIgnore]
     public IEnumerable<ButtonDef> AllButtons => Pages.SelectMany(p => p.Buttons);
 
@@ -41,6 +44,21 @@ public sealed class ButtonDef
     public string? Color { get; set; }
     public ActionDef? Action { get; set; }
     public ActionDef? HoldAction { get; set; }
+}
+
+/// <summary>A continuous control: drags on the phone set <see cref="Action"/>'s target to a value in
+/// [<see cref="Min"/>, <see cref="Max"/>]. Today the target is a MicForge param (micforge/param).</summary>
+public sealed class SliderDef
+{
+    public string Id { get; set; } = "";
+    public string Label { get; set; } = "";
+    public double Min { get; set; }
+    public double Max { get; set; } = 100;
+    public double Step { get; set; } = 1;
+    public string? Unit { get; set; }
+    public string? Color { get; set; }
+    public double Value { get; set; }
+    public ActionDef? Action { get; set; }
 }
 
 /// <summary>A provider + verb + free-form params. The core never interprets <see cref="Params"/>.</summary>

@@ -37,6 +37,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
@@ -45,6 +47,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +67,8 @@ import androidx.compose.ui.unit.sp
 import com.lukr99.relay.net.ButtonDef
 import com.lukr99.relay.net.Layout
 import com.lukr99.relay.net.Page
+import com.lukr99.relay.net.Slider as SliderDef
+import kotlin.math.roundToInt
 
 @Composable
 fun DeckScreen(
@@ -71,6 +76,8 @@ fun DeckScreen(
     agentName: String?,
     states: Map<String, Boolean>,
     levels: Map<String, Float>,
+    sliderValues: Map<String, Float>,
+    onSlider: (String, Float) -> Unit,
     presets: List<String>,
     activePreset: String?,
     onSelectPreset: (String) -> Unit,
@@ -118,6 +125,12 @@ fun DeckScreen(
             DeckGrid(page, cols, rows, states, levels, onPress, onHoldStart, onHoldEnd)
         }
 
+        if (layout.sliders.isNotEmpty()) {
+            Column(Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                layout.sliders.forEach { s -> SliderRow(s, sliderValues[s.id], onSlider) }
+            }
+        }
+
         if (pages.size > 1) {
             Row(
                 Modifier.fillMaxWidth().padding(top = 10.dp),
@@ -140,6 +153,46 @@ fun DeckScreen(
         }
     }
 }
+
+/** A labeled slider bound to a PC-side param (e.g. MicForge gain). Drags send throttled slider.set;
+ *  values pushed by the agent are adopted while the user isn't dragging. */
+@Composable
+private fun SliderRow(s: SliderDef, liveValue: Float?, onSlider: (String, Float) -> Unit) {
+    var dragging by remember { mutableStateOf(false) }
+    var pos by remember(s.id) { mutableStateOf(liveValue ?: s.value) }
+    var lastSent by remember { mutableStateOf(0L) }
+    LaunchedEffect(liveValue, dragging) {
+        if (!dragging && liveValue != null) pos = liveValue
+    }
+    val accent = parseColor(s.color, MaterialTheme.colorScheme.primary)
+    val steps = if (s.step > 0f && s.max > s.min) (((s.max - s.min) / s.step).roundToInt() - 1).coerceAtLeast(0) else 0
+    Column(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(s.label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                formatValue(pos, s.step) + (s.unit ?: ""),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Slider(
+            value = pos.coerceIn(s.min, s.max),
+            onValueChange = { v ->
+                dragging = true
+                pos = v
+                val now = System.currentTimeMillis()
+                if (now - lastSent >= 40) { lastSent = now; onSlider(s.id, v) }
+            },
+            onValueChangeFinished = { dragging = false; onSlider(s.id, pos) },
+            valueRange = s.min..s.max,
+            steps = steps,
+            colors = SliderDefaults.colors(thumbColor = accent, activeTrackColor = accent),
+        )
+    }
+}
+
+private fun formatValue(value: Float, step: Float): String =
+    if (step > 0f && step < 1f) "%.1f".format(value) else "%.0f".format(value)
 
 /** Meter bar colour: green when healthy, amber as it gets hot, red near clipping. */
 private fun meterColor(level: Float): Color = when {

@@ -22,6 +22,7 @@ fun App(vm: DeckViewModel) {
     val agentName by vm.client.agentName.collectAsStateWithLifecycle()
     val buttonStates by vm.client.states.collectAsStateWithLifecycle()
     val buttonLevels by vm.client.levels.collectAsStateWithLifecycle()
+    val sliderValues by vm.client.sliderValues.collectAsStateWithLifecycle()
     val presets by vm.client.presets.collectAsStateWithLifecycle()
 
     var showSettings by remember { mutableStateOf(false) }
@@ -44,6 +45,8 @@ fun App(vm: DeckViewModel) {
                         agentName = agentName,
                         states = buttonStates,
                         levels = buttonLevels,
+                        sliderValues = sliderValues,
+                        onSlider = vm::setSlider,
                         presets = presets.names,
                         activePreset = presets.active,
                         onSelectPreset = vm::selectPreset,

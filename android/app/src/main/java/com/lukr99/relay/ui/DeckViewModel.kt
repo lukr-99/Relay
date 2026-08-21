@@ -46,6 +46,7 @@ class DeckViewModel(app: Application) : AndroidViewModel(app) {
     fun holdStart(buttonId: String) = client.holdStart(buttonId)
     fun holdEnd(buttonId: String) = client.holdEnd(buttonId)
     fun selectPreset(name: String) = client.selectPreset(name)
+    fun setSlider(id: String, value: Float) = client.setSlider(id, value)
 
     override fun onCleared() {
         discovery.stop()
