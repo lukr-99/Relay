@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -75,6 +76,9 @@ import com.lukr99.relay.net.Layout
 import com.lukr99.relay.net.Page
 import com.lukr99.relay.net.Slider as SliderDef
 import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -212,8 +216,58 @@ private fun effectDurationMs(effect: String?): Int = when (effect) {
     "shake" -> 420
     "ripple" -> 460
     "flash" -> 280
+    "fire" -> 750
+    "explosion" -> 650
+    "confetti" -> 1000
+    "sparkle" -> 700
+    "hearts" -> 950
+    "stars" -> 750
     else -> 250
 }
+
+private val particleEffects = setOf("fire", "explosion", "confetti", "sparkle", "hearts", "stars")
+private fun isParticleEffect(effect: String?): Boolean = effect in particleEffects
+
+/** One animated emoji particle; positions are fractions of the button size, relative to centre. */
+private data class Particle(
+    val emoji: String,
+    val sx: Float, val sy: Float,   // start offset (fraction of size, 0 = centre)
+    val vx: Float, val vy: Float,   // velocity (fraction of size over the whole effect)
+    val gy: Float,                  // gravity accel (fraction of size)
+    val spin: Float,                // total rotation (deg)
+    val size: Float,                // emoji size (fraction of button)
+    val twinkle: Boolean,
+)
+
+private fun generateParticles(effect: String, seed: Int): List<Particle> {
+    val r = kotlin.random.Random(seed * 2654435761L.toInt() + effect.hashCode())
+    fun rng(a: Float, b: Float) = a + r.nextFloat() * (b - a)
+    return when (effect) {
+        "explosion" -> List(9) {
+            val ang = it / 9f * (2 * PI).toFloat() + rng(-0.3f, 0.3f)
+            val sp = rng(0.28f, 0.42f)
+            Particle(listOf("💥", "✨", "⭐").random(r), 0f, 0f, cos(ang) * sp, sin(ang) * sp, 0.20f, rng(-120f, 120f), rng(0.30f, 0.42f), false)
+        }
+        "fire" -> List(8) {
+            Particle("🔥", rng(-0.22f, 0.22f), rng(0.25f, 0.42f), rng(-0.08f, 0.08f), rng(-0.65f, -0.45f), 0f, rng(-30f, 30f), rng(0.28f, 0.42f), false)
+        }
+        "confetti" -> List(14) {
+            Particle(listOf("🎉", "🎊", "✨", "⭐").random(r), rng(-0.35f, 0.35f), rng(-0.5f, -0.3f), rng(-0.2f, 0.2f), rng(0.1f, 0.3f), 0.75f, rng(-360f, 360f), rng(0.22f, 0.34f), false)
+        }
+        "sparkle" -> List(7) {
+            Particle("✨", rng(-0.38f, 0.38f), rng(-0.38f, 0.38f), 0f, 0f, 0f, rng(-40f, 40f), rng(0.24f, 0.4f), true)
+        }
+        "hearts" -> List(6) {
+            Particle(listOf("💖", "💗", "❤️").random(r), rng(-0.25f, 0.25f), rng(0.1f, 0.3f), rng(-0.12f, 0.12f), rng(-0.6f, -0.4f), 0f, rng(-20f, 20f), rng(0.26f, 0.4f), false)
+        }
+        else -> List(9) { // stars
+            val ang = it / 9f * (2 * PI).toFloat() + rng(-0.3f, 0.3f)
+            val sp = rng(0.26f, 0.4f)
+            Particle("⭐", 0f, 0f, cos(ang) * sp, sin(ang) * sp, 0.18f, rng(-180f, 180f), rng(0.26f, 0.4f), false)
+        }
+    }
+}
+
 
 private fun effectScale(effect: String?, p: Float): Float = when (effect) {
     "pop" -> 1f + sin(p * PI).toFloat() * 0.18f
@@ -337,6 +391,10 @@ private fun DeckButton(
     val fxTx = if (fxOn) effectTranslateX(b.effect, p) else 0f
     fun fireEffect() { if (b.effect != null) burst++ }
 
+    val particles = remember(burst) {
+        if (burst > 0 && isParticleEffect(b.effect)) generateParticles(b.effect!!, burst) else emptyList()
+    }
+
     // Buttons with a hold action are push-and-hold (PTT): fire on finger-down, release on up.
     val gesture = if (b.hasHold != null) {
         Modifier.pointerInput(b.id) {
@@ -419,6 +477,25 @@ private fun DeckButton(
                         center = center,
                         style = Stroke(width = 4.dp.toPx()),
                     )
+                }
+            }
+            if (particles.isNotEmpty()) {
+                BoxWithConstraints(Modifier.matchParentSize()) {
+                    val s = maxWidth.value
+                    particles.forEach { pt ->
+                        val x = (pt.sx + pt.vx * p) * s
+                        val y = (pt.sy + pt.vy * p + 0.5f * pt.gy * p * p) * s
+                        val a = if (pt.twinkle) abs(sin(p * PI * 3).toFloat()) * (1f - p)
+                                else min(1f, p * 8f) * (1f - p)
+                        Text(
+                            pt.emoji,
+                            fontSize = (s * pt.size).sp,
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .offset(x.dp, y.dp)
+                                .graphicsLayer { this.alpha = a; rotationZ = pt.spin * p },
+                        )
+                    }
                 }
             }
         }

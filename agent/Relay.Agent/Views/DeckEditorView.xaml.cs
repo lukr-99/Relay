@@ -16,7 +16,8 @@ public partial class DeckEditorView : UserControl
 
     // Press animations the phone can play; "None" maps to no effect.
     private static readonly string[] Effects =
-        { "None", "Pop", "Bounce", "Glow", "Shake", "Ripple", "Flash" };
+        { "None", "Pop", "Bounce", "Glow", "Shake", "Ripple", "Flash",
+          "Fire", "Explosion", "Confetti", "Sparkle", "Hearts", "Stars" };
 
     private static readonly string[] MicForgeControls =
         { "Mute", "Bypass", "Start / Stop", "Next preset", "Previous preset", "Preset by name", "DSP stage", "Input meter" };
