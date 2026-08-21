@@ -17,6 +17,7 @@ public partial class SettingsView : UserControl
         _svc = svc;
         NameLine.Text = $"Device name   {svc.Config.DeviceName}";
         PortLine.Text = $"Port          {svc.Config.Port}";
+        AboutLine.Text = $"Relay {AppInfo.Version} — an Android phone as a Stream Deck for Windows.";
         UpdateScriptToggle();
     }
 

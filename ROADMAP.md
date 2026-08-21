@@ -48,8 +48,11 @@ instant.
 
 ## Phase 3 — Power features
 
-- **Profiles that auto-switch by foreground app/game** — absorbs the "per-game preset" and
-  "config guardian" ideas; the deck changes with your focused window. `high / high`
+- ✅ **Profiles that auto-switch by foreground app/game** — done 2026-08-21. The agent watches the
+  focused window (`Profiles/ForegroundWatcher.cs`) and applies the matching rule's deck
+  (`ProfileManager`), with an optional default deck; a manual switch holds until you focus a different
+  app. Rules (exe + optional title → deck) are edited in the agent's **Profiles** tab. Master toggle,
+  off by default. The phone follows automatically via the existing `deck.layout`/`preset.changed` push.
 - **OSC + virtual MIDI inbound** — TouchOSC / MIDI pads drive the same actions. `med / med`
 - **Script provider** (allow-listed commands, opt-in). `med / med`
 - **Local web config UI** served by the agent (edit layouts in a browser). `med / med`

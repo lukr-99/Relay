@@ -1,6 +1,7 @@
 # Relay — Handoff & Status
 
-_Last updated: 2026-08-21 (v0.3.0: phone preset picker, MicForge Phase 2, mDNS, versioned installers)._
+_Last updated: 2026-08-21 (v0.3.0: phone preset picker, MicForge Phase 2, mDNS, versioned installers;
+agent v0.4.0: profile auto-switch by foreground app)._
 
 > **Paths are machine-specific.** This handoff was first written on a machine with the repos under
 > `C:\Users\krejci\Code\…`; they currently also live at `F:\Code\Relay` and `F:\Code\MicForge`.
@@ -22,8 +23,9 @@ QR, tap a button, an action fires on the PC; edit the deck in the agent and the 
 live.
 
 As of **v0.3.0** the deck also has a **phone-side preset picker**, **MicForge Phase 2** (DSP-stage
-toggles + a live input-level meter), and **mDNS auto-discovery**. Both apps now build **versioned
-installers** — a self-contained Windows installer for the agent and a signed release APK.
+toggles + a live input-level meter), and **mDNS auto-discovery**. Both apps build **versioned
+installers** — a self-contained Windows installer for the agent and a signed release APK. Agent
+**v0.4.0** adds **profile auto-switch**: the deck follows your foreground app automatically.
 
 ---
 
@@ -127,6 +129,13 @@ under **"Found on your network"** on the pair screen. Token lives in `%AppData%\
   (`Discovery/MdnsAdvertiser.cs`); the phone browses with **`NsdManager`** (`net/NsdDiscovery.kt`) and
   shows found agents on the pair screen — a match on the saved agent `id` offers one-tap **Reconnect**
   (survives the PC's IP changing). The token is never in mDNS; pairing still needs the QR/manual token.
+- **Profile auto-switch (v0.4.0, agent-only):** the agent watches the foreground window
+  (`Profiles/ForegroundWatcher.cs` — reads the exe via `QueryFullProcessImageName`, so it sees even a
+  game running as admin) and activates the matching rule's deck (`Profiles/ProfileManager.cs`). Rules
+  are **exe + optional title-contains → deck**, with an optional **default deck**; a **manual** switch
+  (editor or phone) holds until you focus a different app. Edited in the agent's new **Profiles** tab
+  (`Views/ProfilesView.xaml`), master toggle **off by default**, stored in
+  `%AppData%\Relay\profiles.json`. Agent-only — phones follow via the existing layout/preset push.
 - **Versioned installers (v0.3.0):** `tools\build-installer.ps1` → self-contained agent installer
   `agent\installer\Relay-Setup-<ver>.exe` (Inno Setup); `tools\build-apk.ps1` → signed
   `android\dist\Relay-<ver>.apk`. Agent version = csproj `<Version>` (surfaced via `AppInfo.Version`);
@@ -136,22 +145,18 @@ under **"Found on your network"** on the pair screen. Token lives in `%AppData%\
 
 ## What's TO DO ⏭️ (roughly prioritized)
 
-The three items that headlined the last handoff — **phone preset picker**, **MicForge Phase 2**, and
-**mDNS** — are all **done** (see What's DONE). Next up:
+The items that headlined recent handoffs — **phone preset picker**, **MicForge Phase 2**, **mDNS**,
+and now **profile auto-switch** — are all **done** (see What's DONE). Next up:
 
-### 1. Profiles that auto-switch by foreground app/game  `high / high`
-Phase-3 headliner; builds directly on presets. Watch the focused window (Win32 event hook) and call
-`LayoutStore.SetActive` when it matches a rule. The whole push/mirror path already exists.
-
-### 2. MicForge Phase 2b — parameter nudges  `med / med`
+### 1. MicForge Phase 2b — parameter nudges  `med / med`
 `param.set {stage,param,value}` / `nudge {…, delta}` for input gain / threshold, driving a phone
 slider row. Extends the same pipe contract (stages + meter already landed).
 
-### 3. OBS provider  `high / med`
+### 2. OBS provider  `high / med`
 obs-websocket v5 (scenes / mute / stream-record) with live scene highlight. Was NU1101-unavailable
 before — revisit the package (Makaretu restored fine now, so the feed may be healthy again).
 
-### 4. Backlog (see ROADMAP.md)
+### 3. Backlog (see ROADMAP.md)
 Per-orientation layouts; a general multi-step macro editor; OSC/MIDI inbound; a configurable "clip"
 hotkey; auto-updater (check GitHub Releases — the installers make this easy now).
 

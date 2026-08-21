@@ -1,5 +1,6 @@
 using Relay.Agent.Discovery;
 using Relay.Agent.Layout;
+using Relay.Agent.Profiles;
 using Relay.Agent.Providers;
 using Relay.Agent.Server;
 
@@ -17,4 +18,6 @@ public sealed class AppServices
     public required DeckServer Server { get; init; }
     public required MdnsAdvertiser Mdns { get; init; }
     public required Cert Cert { get; init; }
+    public required ProfileStore ProfileStore { get; init; }
+    public required ProfileManager Profiles { get; init; }
 }

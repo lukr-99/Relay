@@ -1,6 +1,7 @@
 using System.Windows;
 using Relay.Agent.Discovery;
 using Relay.Agent.Layout;
+using Relay.Agent.Profiles;
 using Relay.Agent.Providers;
 using Relay.Agent.Server;
 
@@ -31,11 +32,15 @@ public partial class App : Application
         server.Start();
         var mdns = new MdnsAdvertiser(config, log, cert.FingerprintHex);
         mdns.Start();
+        var profileStore = new ProfileStore(config, log);
+        var profiles = new ProfileManager(new ForegroundWatcher(), profileStore, layout, log);
+        profiles.Start();
 
         _svc = new AppServices
         {
             Config = config, Log = log, Layout = layout, Providers = providers,
             Router = router, Sessions = sessions, Server = server, Mdns = mdns, Cert = cert,
+            ProfileStore = profileStore, Profiles = profiles,
         };
 
         _tray = new TrayIcon(_svc, ShowMain, QuitApp);
@@ -53,7 +58,7 @@ public partial class App : Application
     private void QuitApp()
     {
         IsQuitting = true;
-        try { _svc?.Server.Dispose(); _svc?.Mdns.Dispose(); } catch { }
+        try { _svc?.Server.Dispose(); _svc?.Mdns.Dispose(); _svc?.Profiles.Dispose(); } catch { }
         _tray?.Dispose();
         Shutdown();
     }

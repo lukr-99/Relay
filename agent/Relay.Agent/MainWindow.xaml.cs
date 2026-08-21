@@ -12,6 +12,7 @@ public partial class MainWindow : Window
     private readonly AppServices _svc;
     private readonly DeckEditorView _deck;
     private readonly DevicesView _devices;
+    private readonly ProfilesView _profiles;
     private readonly SettingsView _settings;
     private readonly DispatcherTimer _statusTimer;
 
@@ -25,6 +26,7 @@ public partial class MainWindow : Window
 
         _deck = new DeckEditorView(svc);
         _devices = new DevicesView(svc);
+        _profiles = new ProfilesView(svc);
         _settings = new SettingsView(svc);
         Host.Content = _deck;
 
@@ -43,6 +45,7 @@ public partial class MainWindow : Window
 
     private void NavDeck_Checked(object sender, RoutedEventArgs e) { if (Host != null) Host.Content = _deck; }
     private void NavDevices_Checked(object sender, RoutedEventArgs e) { if (Host != null) { Host.Content = _devices; _devices.Refresh(); } }
+    private void NavProfiles_Checked(object sender, RoutedEventArgs e) { if (Host != null) { Host.Content = _profiles; _profiles.Refresh(); } }
     private void NavSettings_Checked(object sender, RoutedEventArgs e) { if (Host != null) Host.Content = _settings; }
 
     [DllImport("dwmapi.dll")]
