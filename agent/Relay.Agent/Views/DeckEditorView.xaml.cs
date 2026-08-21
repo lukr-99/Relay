@@ -633,20 +633,24 @@ public partial class DeckEditorView : UserControl
 
     private void AddSlider_Click(object sender, RoutedEventArgs e)
     {
+        if (_svc.Providers.MicForge.KnownParams.Count == 0)
+        {
+            SlidersHint.Text = "Start MicForge first — its parameters then appear here to pick from.";
+            return;
+        }
         AddSliderRow(null);
-        SlidersHint.Text = _svc.Providers.MicForge.KnownParams.Count == 0
-            ? "Start MicForge, then pick a parameter." : "";
+        SlidersHint.Text = "";
     }
 
     private void AddSliderRow(SliderDef? existing)
     {
-        var grid = new System.Windows.Controls.Grid { Margin = new Thickness(0, 3, 0, 0) };
+        var grid = new System.Windows.Controls.Grid { Margin = new Thickness(0, 0, 0, 6) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.4, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var labelBox = new TextBox { Text = existing?.Label ?? "" };
-        var paramBox = new ComboBox { Margin = new Thickness(6, 0, 0, 0) };
+        var labelBox = new TextBox { Text = existing?.Label ?? "", VerticalAlignment = VerticalAlignment.Center };
+        var paramBox = new ComboBox { Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         foreach (var p in _svc.Providers.MicForge.KnownParams) paramBox.Items.Add(new ParamChoice(p));
 
         // Preserve an existing binding even if MicForge is offline (its metadata lives on the def).
@@ -662,7 +666,7 @@ public partial class DeckEditorView : UserControl
             paramBox.SelectedItem = match;
         }
 
-        var del = new Button { Content = "✕", Margin = new Thickness(6, 0, 0, 0), ToolTip = "Remove slider" };
+        var del = new Button { Content = "✕", Width = 30, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, ToolTip = "Remove slider" };
         var row = new SliderRow { Grid = grid, Label = labelBox, Param = paramBox, Id = existing?.Id ?? NewSliderId(), Color = existing?.Color };
 
         paramBox.SelectionChanged += (_, _) =>
