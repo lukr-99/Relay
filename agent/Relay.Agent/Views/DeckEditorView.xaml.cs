@@ -29,7 +29,7 @@ public partial class DeckEditorView : UserControl
         _svc = svc;
 
         for (int i = 1; i <= 8; i++) { ColsBox.Items.Add(i); RowsBox.Items.Add(i); }
-        foreach (var n in IconCatalog.Names) IconBox.Items.Add(n);
+        foreach (var n in IconCatalog.Names) IconBox.Items.Add(new IconChoice(n, Glyph(n)));
         foreach (var t in Types) TypeBox.Items.Add(t);
 
         LoadFromStore();
@@ -240,7 +240,7 @@ public partial class DeckEditorView : UserControl
 
         _loading = true;
         LabelBox.Text = b.Label;
-        IconBox.SelectedItem = b.Icon;
+        IconBox.SelectedItem = IconBox.Items.Cast<IconChoice>().FirstOrDefault(x => x.Name == b.Icon);
         ColorBox.Text = b.Color ?? "";
         var act = b.Action ?? b.HoldAction;
         var type = DetectType(act);
@@ -366,7 +366,7 @@ public partial class DeckEditorView : UserControl
         var b = _selectedId is null ? null : _page.Buttons.FirstOrDefault(x => x.Id == _selectedId);
         if (b is null) return;
         b.Label = LabelBox.Text.Trim();
-        b.Icon = IconBox.SelectedItem as string;
+        b.Icon = (IconBox.SelectedItem as IconChoice)?.Name;
         b.Color = string.IsNullOrWhiteSpace(ColorBox.Text) ? null : ColorBox.Text.Trim();
         var type = TypeBox.SelectedItem as string ?? "Hotkey";
         var act = ReadAction(type);
@@ -558,6 +558,15 @@ public partial class DeckEditorView : UserControl
 
     private static JsonElement Params(JsonElement step)
         => step.ValueKind == JsonValueKind.Object && step.TryGetProperty("params", out var p) ? p : default;
+
+    /// <summary>An icon option shown in the picker: its layout name + the glyph to display.</summary>
+    private sealed class IconChoice
+    {
+        public IconChoice(string name, string glyph) { Name = name; Glyph = glyph; }
+        public string Name { get; }
+        public string Glyph { get; }
+        public override string ToString() => Name;
+    }
 
     private static string DetectType(ActionDef? a)
     {
