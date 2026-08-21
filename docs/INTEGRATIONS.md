@@ -49,71 +49,58 @@ mute hotkey; a "PTT" button uses `holdAction`.
 - ⚠️ **No state feedback** (the button can't know if the mic is actually muted), and you're
   limited to whatever hotkeys are bound.
 
-### Phase 1 — MicForge exposes the Deck Control Contract
+### Phase 1 — MicForge exposes the Deck Control Contract ✅ (done 2026-08-21)
 
-MicForge adds a small **control server** implementing the [Deck Control Contract](#deck-control-contract)
-below. Relay's `MicForgeProvider` discovers it over mDNS and becomes a client. Now:
+MicForge hosts a small **control endpoint** (`DeckBridge`) and Relay's **`micforge` provider** is
+its client. Now:
 
-- **Real toggle + feedback:** `mic.toggleMute` returns/pushes `muted`, so the button reflects
-  truth even when muted from MicForge's own UI or hotkey.
-- **Presets:** `preset.load {name}`; `preset.changed` event highlights the active preset button.
-- **Stages:** `stage.setEnabled {id,enabled}` to flip Gate / Noise Suppression / Voice Changer,
-  with `stage.changed` feedback.
+- **Real toggle + feedback:** pressing Mute toggles the mic *and* the button reflects the truth —
+  it also lights up when muted from MicForge's own UI, hotkey, or push-to-talk.
+- **Bypass & Start/Stop:** same two-way behavior.
+- **Presets:** load a preset **by name** or cycle **next/prev**; the active-preset button highlights
+  and follows changes made anywhere.
 
-### Phase 2 — richer control
+**Transport — loopback named pipe, not a socket.** Agent + MicForge share the PC, so instead of a
+network endpoint the contract runs over `\\.\pipe\MicForge.DeckControl` — unreachable from the LAN
+by construction, no token/TLS needed, no port to collide. Messages are **newline-delimited JSON**
+("Deck Control Contract v1"). MicForge pushes `hello` + `state` on connect and re-broadcasts `state`
+on every change; the client only ever writes in response to a press (writing before both ends start
+reading would deadlock the pipe).
+
+**Client → MicForge**
+
+| Message | Meaning |
+|---|---|
+| `{"op":"getState"}` | request a `state` reply |
+| `{"op":"set","target":"mute\|bypass\|running","value":true}` | set an explicit state |
+| `{"op":"toggle","target":"mute\|bypass\|running"}` | flip it |
+| `{"op":"preset","name":"…"}` | load a preset by name |
+| `{"op":"preset","dir":"next\|prev"}` | cycle presets |
+
+**MicForge → client**
+
+| Message | Meaning |
+|---|---|
+| `{"type":"hello","app":"MicForge","version":"…","protocol":1}` | sent once on connect |
+| `{"type":"state","mute":…,"bypass":…,"running":…,"preset":"…","presets":[…]}` | current state; pushed on connect and on every change |
+
+The provider maps each `state` onto `button.state` for any deck button bound to `micforge` (mute /
+bypass / startstop, or a preset button whose name matches `preset`), so the phone mirrors MicForge
+live. On disconnect it clears those buttons. Authoring: the agent's deck editor has a **MicForge**
+action type (Mute / Bypass / Start-Stop / Next preset / Previous preset / Preset by name).
+
+### Phase 2 — richer control (future)
 
 - **Parameter nudges:** `param.set {stage,param,value}` / `nudge {…, delta}` for input gain,
   threshold, etc. — deck buttons or a phone slider row.
-- **Live meter on a button:** subscribe to `inputLevel`; render it as a badge/bar on a button.
-- **Crafting cards:** toggle MicForge "voice character" cards from the deck.
+- **DSP stages:** flip Gate / Noise Suppression / Voice Changer with feedback (add a
+  `stage`/`stages` field to the state and a `{"op":"stage","id":…,"enabled":…}` command).
+- **Live meter on a button:** stream input level; render it as a badge/bar on a button.
 
-### MicForge-side work (tracked in the MicForge repo)
-
-A minimal, self-contained addition — it reuses the same standards Relay already uses, so
-there's little new surface:
-
-1. Host a JSON-RPC-over-WSS endpoint (Kestrel, same as the agent) — or, simplest first cut, a
-   loopback-only `ws://127.0.0.1` endpoint since agent+MicForge run on the same PC.
-2. Advertise `_deckctl._tcp.local` via mDNS with `app=micforge`.
-3. Implement the method + event vocabulary below, mapping to MicForge's existing view-model
-   commands (mute, preset load, stage enable, param set).
-4. Reuse MicForge's existing token/settings storage for the pairing token.
-
-> Because agent and MicForge are on the same machine, a **loopback endpoint with no TLS** is an
-> acceptable Phase-1 shortcut (a remote attacker can't reach loopback). Promote to WSS + token
-> if MicForge control is ever exposed off-box.
-
-### Deck Control Contract
-
-A tiny internal contract any of your apps can implement to become deck-controllable. Same
-transport as everything else (JSON-RPC 2.0 / WebSocket / mDNS). It is the **only** protocol
-Relay defines itself — see [STANDARDS.md](STANDARDS.md#the-one-internal-contract).
-
-**Discovery:** advertise `_deckctl._tcp.local`, TXT `app=<name>; v=1`.
-
-**Methods (controller → app)**
-
-| Method | Params | Result |
-|---|---|---|
-| `ctl.hello` | `{ controller:{id,name} }` | `{ app:{name,version}, capabilities:[…] }` |
-| `ctl.getState` | `{}` | app state object (e.g. `{muted, preset, running, inputLevel, stages:[…]}`) |
-| `mic.setMuted` / `mic.toggleMute` | `{muted?}` | `{ muted }` |
-| `preset.list` / `preset.load` | `{}` / `{name}` | `[names]` / `{ preset }` |
-| `stage.setEnabled` | `{id, enabled}` | `{ id, enabled }` |
-| `param.set` | `{stage, param, value}` | `{ ok }` |
-
-**Events (app → controller, notifications)**
-
-| Event | Params |
-|---|---|
-| `state.changed` | partial state (only changed fields) |
-| `mic.muteChanged` | `{ muted }` |
-| `preset.changed` | `{ preset }` |
-| `level` | `{ inputLevel }` (throttled, for meters) |
-
-Relay maps these onto the `micforge` provider verbs and `StateBinding.watch` keys in
-[DATA-MODEL.md](DATA-MODEL.md). Future tools (e.g. a game-config tool, an aim-trainer HUD) can
-implement the same contract to appear as new providers with no protocol changes.
+> Any of the user's other apps can become deck-controllable by hosting the same tiny NDJSON pipe
+> contract — it's the one protocol Relay defines itself (see
+> [STANDARDS.md](STANDARDS.md#the-one-internal-contract)). A future tool appears as a new provider
+> with no protocol changes.
 
 ---
 

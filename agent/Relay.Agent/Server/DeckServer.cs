@@ -20,6 +20,7 @@ public sealed class DeckServer : IDisposable
     private readonly SessionManager _sessions;
     private readonly LayoutStore _layout;
     private readonly RpcDispatcher _dispatcher;
+    private readonly Providers.ProviderRegistry _providers;
     private readonly Cert _cert;
     private readonly Log _log;
     private WebApplication? _app;
@@ -30,11 +31,14 @@ public sealed class DeckServer : IDisposable
         _config = config;
         _sessions = sessions;
         _layout = layout;
+        _providers = providers;
         _cert = cert;
         _log = log;
         _dispatcher = new RpcDispatcher(config, layout, router, providers, log);
         _layout.Changed += OnLayoutChanged;
-        router.OnButtonState = (id, on) => _sessions.BroadcastAsync(RpcDispatcher.ButtonStateNotification(id, on));
+        Func<string, bool, Task> pushState = (id, on) => _sessions.BroadcastAsync(RpcDispatcher.ButtonStateNotification(id, on));
+        router.OnButtonState = pushState;
+        providers.MicForge.OnButtonState = pushState;
     }
 
     private void OnLayoutChanged()
@@ -85,6 +89,7 @@ public sealed class DeckServer : IDisposable
         var session = new WsSession(socket);
         _sessions.Add(session);
         _log.Info($"session {session.Id} connected from {ctx.Connection.RemoteIpAddress} ({_sessions.Count} total)");
+        _providers.MicForge.RepushState();   // mirror MicForge's current state onto the fresh deck
         try
         {
             await ReceiveLoop(session, socket, ctx.RequestAborted);

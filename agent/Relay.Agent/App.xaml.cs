@@ -24,7 +24,7 @@ public partial class App : Application
 
         var cert = Cert.LoadOrCreate(config, log);
         var layout = new LayoutStore(config, log);
-        var providers = new ProviderRegistry(config, log);
+        var providers = new ProviderRegistry(config, layout, log);
         var router = new ActionRouter(providers, layout, log);
         var sessions = new SessionManager();
         var server = new DeckServer(config, layout, router, sessions, providers, cert, log);

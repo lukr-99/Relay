@@ -1,3 +1,5 @@
+using Relay.Agent.Layout;
+
 namespace Relay.Agent.Providers;
 
 /// <summary>Holds the available providers, keyed by <see cref="IProvider.Id"/>.</summary>
@@ -5,11 +7,16 @@ public sealed class ProviderRegistry
 {
     private readonly Dictionary<string, IProvider> _providers = new(StringComparer.OrdinalIgnoreCase);
 
-    public ProviderRegistry(AppConfig config, Log log)
+    /// <summary>The MicForge bridge, exposed so the server can push its live state to phones.</summary>
+    public MicForgeProvider MicForge { get; }
+
+    public ProviderRegistry(AppConfig config, LayoutStore layout, Log log)
     {
         Register(new OsProvider(log));
         Register(new ScriptProvider(config, log));
-        // Future: ObsProvider, MicForgeProvider (see docs/INTEGRATIONS.md).
+        MicForge = new MicForgeProvider(layout, log);
+        Register(MicForge);
+        // Future: ObsProvider (see docs/INTEGRATIONS.md).
     }
 
     public void Register(IProvider p) => _providers[p.Id] = p;

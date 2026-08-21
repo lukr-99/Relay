@@ -12,7 +12,10 @@ namespace Relay.Agent.Views;
 public partial class DeckEditorView : UserControl
 {
     private static readonly string[] Types =
-        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Run command", "Hold key (PTT)", "Toggle" };
+        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Run command", "Hold key (PTT)", "Toggle", "MicForge" };
+
+    private static readonly string[] MicForgeControls =
+        { "Mute", "Bypass", "Start / Stop", "Next preset", "Previous preset", "Preset by name" };
 
     private readonly AppServices _svc;
     private DeckLayout _work = new();
@@ -272,6 +275,10 @@ public partial class DeckEditorView : UserControl
                 AddText("onkeys", "On hotkey (e.g. ctrl+shift+m)");
                 AddText("offkeys", "Off hotkey (optional; defaults to On)");
                 break;
+            case "MicForge":
+                AddCombo("mf_target", "Control", MicForgeControls);
+                AddText("mf_preset", "Preset name (for 'Preset by name')");
+                break;
         }
     }
 
@@ -320,6 +327,18 @@ public partial class DeckEditorView : UserControl
                     if (arr.Length > 1) SetVal("message", Str(Params(arr[1]), "value"));
                     if (arr.Length > 2) SetVal("send", Keys(Params(arr[2]), "keys"));
                 }
+                break;
+            case "MicForge":
+                SetVal("mf_target", a.Verb.ToLowerInvariant() switch
+                {
+                    "bypass" => "Bypass",
+                    "startstop" => "Start / Stop",
+                    "preset" => p.ValueKind == JsonValueKind.Object && p.TryGetProperty("dir", out var dir) && dir.ValueKind == JsonValueKind.String
+                        ? (dir.GetString() == "prev" ? "Previous preset" : "Next preset")
+                        : "Preset by name",
+                    _ => "Mute",
+                });
+                SetVal("mf_preset", Str(p, "name"));
                 break;
         }
     }
@@ -406,6 +425,18 @@ public partial class DeckEditorView : UserControl
                         new { provider = "os", verb = "text", @params = new { value = Val("message") } },
                         new { provider = "os", verb = "hotkey", @params = new { keys = ParseKeys(Val("send")) } },
                     },
+                };
+                break;
+            case "MicForge":
+                provider = "micforge";
+                (verb, payload) = Val("mf_target") switch
+                {
+                    "Bypass" => ("bypass", (object)new { }),
+                    "Start / Stop" => ("startstop", new { }),
+                    "Next preset" => ("preset", new { dir = "next" }),
+                    "Previous preset" => ("preset", new { dir = "prev" }),
+                    "Preset by name" => ("preset", new { name = Val("mf_preset") }),
+                    _ => ("mute", new { }),
                 };
                 break;
             default: verb = "hotkey"; payload = new { keys = ParseKeys(Val("keys")) }; break;
@@ -574,6 +605,7 @@ public partial class DeckEditorView : UserControl
         if (string.Equals(a.Verb, "macro", StringComparison.OrdinalIgnoreCase)) return "Chat macro";
         if (string.Equals(a.Verb, "holdkey", StringComparison.OrdinalIgnoreCase)) return "Hold key (PTT)";
         if (string.Equals(a.Verb, "toggle", StringComparison.OrdinalIgnoreCase)) return "Toggle";
+        if (string.Equals(a.Provider, "micforge", StringComparison.OrdinalIgnoreCase)) return "MicForge";
         if (string.Equals(a.Provider, "script", StringComparison.OrdinalIgnoreCase)) return "Run command";
         return a.Verb.ToLowerInvariant() switch
         {

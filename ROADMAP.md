@@ -30,12 +30,16 @@ instant.
 
 ## Phase 2 — Feedback & integrations
 
-- **StateHub + `button.state` events**; buttons reflect real state. `high / med`
+- ✅ **StateHub + `button.state` events**; buttons reflect real state (done — toggles + MicForge
+  mirror their real state to the deck).
 - **OBS provider** (obs-websocket v5): scenes, source/mute toggles, stream/record, live scene
   highlight. `high / med`
 - **MicForge Phase 0** (fire existing global hotkeys — no MicForge change). `high / low`
-- **MicForge Phase 1** (Deck Control Contract: mute/preset/stage with feedback). `high / high`
-  — needs the [MicForge-side control server](docs/INTEGRATIONS.md#micforge-side-work-tracked-in-the-micforge-repo).
+- ✅ **MicForge Phase 1** (Deck Control Contract: mute / bypass / start-stop / preset **with live
+  feedback**) — done 2026-08-21. Loopback **named pipe** `\\.\pipe\MicForge.DeckControl`, NDJSON
+  contract; MicForge hosts `DeckBridge`, the agent's `micforge` provider is the client and mirrors
+  MicForge state onto the deck via `button.state`. See
+  [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md#micforge).
 - **Live "value" buttons** — now-playing (SMTC), input level meter badge. `med / med`
 
 ## Phase 3 — Power features
@@ -94,6 +98,18 @@ Raw ideas captured after seeing Phase 0 on-device. Not yet slotted into phases. 
 ### Reliability (discovered while testing)
 - ✅ **App auto-reconnect** (done 2026-08-20) — the phone now retries with backoff when the socket
   drops; verified it comes back on its own after an agent restart.
+
+### Deck presets / profiles (user idea 2026-08-21)
+- **Named, switchable whole-deck presets** (a.k.a. profiles) — not pages *within* one deck, but
+  distinct decks you pick between. Ship a **Default** preset (the user's current tiles) and a
+  **MicForge** preset (mic mute / bypass / start-stop / preset buttons), and let the user create
+  more **custom** presets. `high / high`
+- Implies: agent stores multiple layouts (e.g. `presets/<name>.json`) with one **active**; the
+  editor gets a preset switcher + new/duplicate/rename/delete; the phone can switch presets (picker)
+  and/or the agent pushes the active one. Overlaps with Phase 3 "profiles that auto-switch by
+  foreground app" — manual presets first, auto-switch rule later.
+- **Seed content:** on first run (or a "＋ MicForge preset" button) generate the MicForge deck so the
+  new `micforge` provider is discoverable without hand-building it.
 
 ### Clip button
 - **How it works:** the button fires an `os.hotkey` chord (currently `Alt+F10`); the agent
