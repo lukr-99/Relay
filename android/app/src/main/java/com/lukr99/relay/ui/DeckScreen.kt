@@ -1,11 +1,16 @@
 package com.lukr99.relay.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -56,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -68,7 +74,9 @@ import com.lukr99.relay.net.ButtonDef
 import com.lukr99.relay.net.Layout
 import com.lukr99.relay.net.Page
 import com.lukr99.relay.net.Slider as SliderDef
+import kotlin.math.PI
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 @Composable
 fun DeckScreen(
@@ -196,6 +204,30 @@ private fun SliderRow(s: SliderDef, liveValue: Float?, onSlider: (String, Float)
 private fun formatValue(value: Float, step: Float): String =
     if (step > 0f && step < 1f) "%.1f".format(value) else "%.0f".format(value)
 
+// ── press effects ──────────────────────────────────────────────────────────────────────────
+private fun effectDurationMs(effect: String?): Int = when (effect) {
+    "pop" -> 260
+    "bounce" -> 460
+    "glow" -> 420
+    "shake" -> 420
+    "ripple" -> 460
+    "flash" -> 280
+    else -> 250
+}
+
+private fun effectScale(effect: String?, p: Float): Float = when (effect) {
+    "pop" -> 1f + sin(p * PI).toFloat() * 0.18f
+    "bounce" -> 1f + (sin(p * PI * 2) * (1f - p)).toFloat() * 0.16f
+    else -> 1f
+}
+
+private fun effectTranslateX(effect: String?, p: Float): Float = when (effect) {
+    "shake" -> (sin(p * PI * 5) * (1f - p)).toFloat() * 20f
+    else -> 0f
+}
+
+private fun glowAlpha(p: Float): Float = sin(p * PI).toFloat()
+
 /** Meter bar colour: green when healthy, amber as it gets hot, red near clipping. */
 private fun meterColor(level: Float): Color = when {
     level >= 0.85f -> Color(0xFFE5543B)
@@ -291,12 +323,27 @@ private fun DeckButton(
         label = "scale",
     )
 
+    // One-shot press effect (pop / bounce / glow / shake / ripple / flash), replayed on each tap.
+    var burst by remember { mutableStateOf(0) }
+    val prog = remember { Animatable(1f) }   // 1f = idle
+    LaunchedEffect(burst) {
+        if (burst == 0) return@LaunchedEffect
+        prog.snapTo(0f)
+        prog.animateTo(1f, animationSpec = tween(effectDurationMs(b.effect), easing = LinearEasing))
+    }
+    val p = prog.value
+    val fxOn = b.effect != null && p < 1f
+    val fxScale = if (fxOn) effectScale(b.effect, p) else 1f
+    val fxTx = if (fxOn) effectTranslateX(b.effect, p) else 0f
+    fun fireEffect() { if (b.effect != null) burst++ }
+
     // Buttons with a hold action are push-and-hold (PTT): fire on finger-down, release on up.
     val gesture = if (b.hasHold != null) {
         Modifier.pointerInput(b.id) {
             awaitEachGesture {
                 awaitFirstDown()
                 held = true
+                fireEffect()
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 onHoldStart(b.id)
                 waitForUpOrCancellation()
@@ -306,6 +353,7 @@ private fun DeckButton(
         }
     } else {
         Modifier.clickable(interactionSource = interaction, indication = ripple()) {
+            fireEffect()
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             onPress(b.id)
         }
@@ -314,7 +362,7 @@ private fun DeckButton(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .graphicsLayer { scaleX = scale * fxScale; scaleY = scale * fxScale; translationX = fxTx }
             .clip(RoundedCornerShape(16.dp))
             .background(bg)
             .then(gesture),
@@ -351,6 +399,25 @@ private fun DeckButton(
                         fontSize = fontSize.sp,
                         lineHeight = (fontSize + 2f).sp,
                         modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
+        }
+        // Press-effect overlays, drawn over the content and clipped to the button shape.
+        if (fxOn) {
+            when (b.effect) {
+                "glow" -> Box(
+                    Modifier
+                        .matchParentSize()
+                        .border(BorderStroke(3.dp, MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha(p))), RoundedCornerShape(16.dp)),
+                )
+                "flash" -> Box(Modifier.matchParentSize().background(Color.White.copy(alpha = (1f - p) * 0.5f)))
+                "ripple" -> Canvas(Modifier.matchParentSize()) {
+                    drawCircle(
+                        color = fg.copy(alpha = (1f - p) * 0.6f),
+                        radius = p * size.maxDimension * 0.6f,
+                        center = center,
+                        style = Stroke(width = 4.dp.toPx()),
                     )
                 }
             }

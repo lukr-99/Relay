@@ -14,6 +14,10 @@ public partial class DeckEditorView : UserControl
     private static readonly string[] Types =
         { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Open folder", "Run command", "Hold key (PTT)", "Toggle", "Screenshot", "Open screenshots", "MicForge" };
 
+    // Press animations the phone can play; "None" maps to no effect.
+    private static readonly string[] Effects =
+        { "None", "Pop", "Bounce", "Glow", "Shake", "Ripple", "Flash" };
+
     private static readonly string[] MicForgeControls =
         { "Mute", "Bypass", "Start / Stop", "Next preset", "Previous preset", "Preset by name", "DSP stage", "Input meter" };
 
@@ -39,6 +43,7 @@ public partial class DeckEditorView : UserControl
         for (int i = 1; i <= 8; i++) { ColsBox.Items.Add(i); RowsBox.Items.Add(i); }
         foreach (var n in IconCatalog.Names) IconBox.Items.Add(new IconChoice(n, Glyph(n)));
         foreach (var t in Types) TypeBox.Items.Add(t);
+        foreach (var ef in Effects) EffectBox.Items.Add(ef);
 
         LoadFromStore();
     }
@@ -259,6 +264,7 @@ public partial class DeckEditorView : UserControl
         LabelBox.Text = b.Label;
         IconBox.SelectedItem = IconBox.Items.Cast<IconChoice>().FirstOrDefault(x => x.Name == b.Icon);
         ColorBox.Text = b.Color ?? "";
+        EffectBox.SelectedItem = Effects.FirstOrDefault(x => x.Equals(b.Effect, StringComparison.OrdinalIgnoreCase)) ?? "None";
         var act = b.Action ?? b.HoldAction;
         var type = DetectType(act);
         TypeBox.SelectedItem = type;
@@ -461,6 +467,7 @@ public partial class DeckEditorView : UserControl
         b.Label = LabelBox.Text.Trim();
         b.Icon = (IconBox.SelectedItem as IconChoice)?.Name;
         b.Color = string.IsNullOrWhiteSpace(ColorBox.Text) ? null : ColorBox.Text.Trim();
+        b.Effect = EffectBox.SelectedItem is string ef && ef != "None" ? ef.ToLowerInvariant() : null;
         var type = TypeBox.SelectedItem as string ?? "Hotkey";
         var act = ReadAction(type);
         if (type == "Hold key (PTT)") { b.HoldAction = act; b.Action = null; }

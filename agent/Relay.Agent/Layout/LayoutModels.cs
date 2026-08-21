@@ -42,6 +42,10 @@ public sealed class ButtonDef
     public string Label { get; set; } = "";
     public string? Icon { get; set; }
     public string? Color { get; set; }
+
+    /// <summary>Optional press animation the phone plays on tap: pop / bounce / glow / shake / ripple / flash.</summary>
+    public string? Effect { get; set; }
+
     public ActionDef? Action { get; set; }
     public ActionDef? HoldAction { get; set; }
 }

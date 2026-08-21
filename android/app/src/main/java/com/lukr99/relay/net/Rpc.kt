@@ -57,6 +57,7 @@ data class ButtonDef(
     val label: String = "",
     val icon: String? = null,
     val color: String? = null,
+    val effect: String? = null,
     @SerialName("holdAction") val hasHold: JsonObject? = null,
 )
 
