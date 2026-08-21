@@ -161,7 +161,9 @@ private fun SliderRow(s: SliderDef, liveValue: Float?, onSlider: (String, Float)
     var dragging by remember { mutableStateOf(false) }
     var pos by remember(s.id) { mutableStateOf(liveValue ?: s.value) }
     var lastSent by remember { mutableStateOf(0L) }
-    LaunchedEffect(liveValue, dragging) {
+    // Adopt a pushed value only when it actually changes (external update) and we're not mid-drag —
+    // NOT on drag-end, or the knob would snap back to a stale value instead of sticking.
+    LaunchedEffect(liveValue) {
         if (!dragging && liveValue != null) pos = liveValue
     }
     val accent = parseColor(s.color, MaterialTheme.colorScheme.primary)
