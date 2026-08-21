@@ -26,6 +26,16 @@ public sealed class AppConfig
     /// <summary>Stable agent id (survives IP changes; lets the phone re-find us).</summary>
     public required string AgentId { get; init; }
 
+    /// <summary>Whether the Script (run-command) provider is allowed to execute. Off by default.</summary>
+    public bool ScriptEnabled { get; set; }
+
+    /// <summary>Persists the mutable state fields (token, port, script toggle) back to disk.</summary>
+    public void PersistState()
+    {
+        var s = new AgentState { AgentId = AgentId, Token = Token, Port = Port, ScriptEnabled = ScriptEnabled };
+        try { File.WriteAllText(StatePath, System.Text.Json.JsonSerializer.Serialize(s)); } catch { }
+    }
+
     public static AppConfig Load()
     {
         var dir = Path.Combine(
@@ -44,6 +54,7 @@ public sealed class AppConfig
             Port = state.Port,
             Token = state.Token,
             AgentId = state.AgentId,
+            ScriptEnabled = state.ScriptEnabled,
         };
     }
 
@@ -62,6 +73,7 @@ public sealed class AgentState
     public string AgentId { get; set; } = Guid.NewGuid().ToString("n");
     public string Token { get; set; } = AppConfig.NewToken();
     public int Port { get; set; } = 8731;
+    public bool ScriptEnabled { get; set; }
 
     public static AgentState LoadOrCreate(string path)
     {

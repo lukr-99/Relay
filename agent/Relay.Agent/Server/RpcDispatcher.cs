@@ -14,13 +14,16 @@ public sealed class RpcDispatcher
     private readonly AppConfig _config;
     private readonly LayoutStore _layout;
     private readonly ActionRouter _router;
+    private readonly Providers.ProviderRegistry _providers;
     private readonly Log _log;
 
-    public RpcDispatcher(AppConfig config, LayoutStore layout, ActionRouter router, Log log)
+    public RpcDispatcher(AppConfig config, LayoutStore layout, ActionRouter router,
+        Providers.ProviderRegistry providers, Log log)
     {
         _config = config;
         _layout = layout;
         _router = router;
+        _providers = providers;
         _log = log;
     }
 
@@ -44,8 +47,8 @@ public sealed class RpcDispatcher
                 _log.Info($"session {session.Id} hello from '{session.DeviceName ?? "?"}'");
                 return Result(id, new
                 {
-                    agent = new { id = _config.AgentId, name = _config.DeviceName, version = "0.1.0" },
-                    capabilities = new[] { "os" },
+                    agent = new { id = _config.AgentId, name = _config.DeviceName, version = "0.2.0" },
+                    capabilities = System.Linq.Enumerable.ToArray(_providers.Ids),
                 });
 
             case "deck.getLayout":

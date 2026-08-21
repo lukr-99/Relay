@@ -26,6 +26,15 @@
 
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
                 <StackPanel>
+                    <TextBlock Text="Automation" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBlock Text="Run-command buttons let a deck button run a shell command on this PC. Off by default."
+                               Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <Button x:Name="ScriptToggle" Click="ScriptToggle_Click" HorizontalAlignment="Left"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
                     <TextBlock Text="Pairing security" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <TextBlock Text="Regenerate the token to unpair every phone. You'll re-pair after a restart."
                                Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>

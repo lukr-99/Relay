@@ -16,6 +16,21 @@ public partial class SettingsView : UserControl
         _svc = svc;
         NameLine.Text = $"Device name   {svc.Config.DeviceName}";
         PortLine.Text = $"Port          {svc.Config.Port}";
+        UpdateScriptToggle();
+    }
+
+    private void UpdateScriptToggle()
+    {
+        var on = _svc.Config.ScriptEnabled;
+        ScriptToggle.Content = on ? "Run-command: ON" : "Run-command: OFF";
+        ScriptToggle.Style = (Style)FindResource(on ? "AccentButton" : "DangerButton");
+    }
+
+    private void ScriptToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _svc.Config.ScriptEnabled = !_svc.Config.ScriptEnabled;
+        _svc.Config.PersistState();
+        UpdateScriptToggle();
     }
 
     private void OpenData_Click(object sender, RoutedEventArgs e)

@@ -23,13 +23,14 @@ public sealed class DeckServer : IDisposable
     private readonly Log _log;
     private WebApplication? _app;
 
-    public DeckServer(AppConfig config, LayoutStore layout, ActionRouter router, SessionManager sessions, Log log)
+    public DeckServer(AppConfig config, LayoutStore layout, ActionRouter router, SessionManager sessions,
+        Providers.ProviderRegistry providers, Log log)
     {
         _config = config;
         _sessions = sessions;
         _layout = layout;
         _log = log;
-        _dispatcher = new RpcDispatcher(config, layout, router, log);
+        _dispatcher = new RpcDispatcher(config, layout, router, providers, log);
         _layout.Changed += OnLayoutChanged;
     }
 

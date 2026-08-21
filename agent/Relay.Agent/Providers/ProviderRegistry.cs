@@ -5,10 +5,11 @@ public sealed class ProviderRegistry
 {
     private readonly Dictionary<string, IProvider> _providers = new(StringComparer.OrdinalIgnoreCase);
 
-    public ProviderRegistry(Log log)
+    public ProviderRegistry(AppConfig config, Log log)
     {
         Register(new OsProvider(log));
-        // Future: ObsProvider, MicForgeProvider, ScriptProvider (see docs/INTEGRATIONS.md).
+        Register(new ScriptProvider(config, log));
+        // Future: ObsProvider, MicForgeProvider (see docs/INTEGRATIONS.md).
     }
 
     public void Register(IProvider p) => _providers[p.Id] = p;

@@ -12,7 +12,7 @@ namespace Relay.Agent.Views;
 public partial class DeckEditorView : UserControl
 {
     private static readonly string[] Types =
-        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL" };
+        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Run command" };
 
     private readonly AppServices _svc;
     private DeckLayout _work = new();
@@ -265,6 +265,7 @@ public partial class DeckEditorView : UserControl
                 break;
             case "Launch app": AddText("path", "Path / command"); AddText("args", "Arguments (optional)"); break;
             case "Open URL": AddText("url", "URL"); break;
+            case "Run command": AddText("command", "Command (cmd)"); AddText("args", "Arguments (optional)"); break;
         }
     }
 
@@ -296,6 +297,7 @@ public partial class DeckEditorView : UserControl
             case "Type text": SetVal("value", Str(p, "value")); break;
             case "Launch app": SetVal("path", Str(p, "path")); SetVal("args", Str(p, "args")); break;
             case "Open URL": SetVal("url", Str(p, "url")); break;
+            case "Run command": SetVal("command", Str(p, "command")); SetVal("args", Str(p, "args")); break;
             case "Chat macro":
                 if (p.ValueKind == JsonValueKind.Object && p.TryGetProperty("steps", out var steps) && steps.ValueKind == JsonValueKind.Array)
                 {
@@ -365,6 +367,7 @@ public partial class DeckEditorView : UserControl
             case "Type text": verb = "text"; payload = new { value = Val("value") }; break;
             case "Launch app": verb = "launch"; payload = new { path = Val("path"), args = Val("args") }; break;
             case "Open URL": verb = "open"; payload = new { url = Val("url") }; break;
+            case "Run command": provider = "script"; verb = "run"; payload = new { command = Val("command"), args = Val("args") }; break;
             case "Chat macro":
                 provider = "core"; verb = "macro";
                 payload = new
@@ -513,6 +516,7 @@ public partial class DeckEditorView : UserControl
     {
         if (a is null) return "Hotkey";
         if (string.Equals(a.Verb, "macro", StringComparison.OrdinalIgnoreCase)) return "Chat macro";
+        if (string.Equals(a.Provider, "script", StringComparison.OrdinalIgnoreCase)) return "Run command";
         return a.Verb.ToLowerInvariant() switch
         {
             "media" => "Media key",

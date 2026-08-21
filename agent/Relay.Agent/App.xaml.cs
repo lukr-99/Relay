@@ -23,10 +23,10 @@ public partial class App : Application
         log.Info($"Relay agent 0.2.0 starting — id={config.AgentId} port={config.Port}");
 
         var layout = new LayoutStore(config, log);
-        var providers = new ProviderRegistry(log);
+        var providers = new ProviderRegistry(config, log);
         var router = new ActionRouter(providers, layout, log);
         var sessions = new SessionManager();
-        var server = new DeckServer(config, layout, router, sessions, log);
+        var server = new DeckServer(config, layout, router, sessions, providers, log);
         server.Start();
         var mdns = new MdnsAdvertiser(config, log);
         mdns.Start();
