@@ -30,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -113,13 +115,17 @@ private fun DeckGrid(page: Page, cardMinDp: Int, onPress: (String) -> Unit) {
 private fun DeckButton(b: ButtonDef, onPress: (String) -> Unit) {
     val bg = parseColor(b.color, MaterialTheme.colorScheme.surface)
     val fg = if (bg.luminance() > 0.5f) Color(0xFF10141A) else Color.White
+    val haptics = LocalHapticFeedback.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .clip(RoundedCornerShape(16.dp))
             .background(bg)
-            .clickable { onPress(b.id) }
+            .clickable {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onPress(b.id)
+            }
             .padding(8.dp),
         contentAlignment = Alignment.Center,
     ) {
