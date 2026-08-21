@@ -70,6 +70,32 @@
           }
         }
       ]
+    },
+    {
+      "id": "p-apps",
+      "name": "Apps",
+      "buttons": [
+        {
+          "id": "b-explorer", "row": 0, "col": 0,
+          "label": "Files", "icon": "folder", "color": "#2c3e50",
+          "action": { "provider": "os", "verb": "launch", "params": { "path": "explorer.exe" } }
+        },
+        {
+          "id": "b-calc", "row": 0, "col": 1,
+          "label": "Calc", "icon": "bolt", "color": "#2c3e50",
+          "action": { "provider": "os", "verb": "launch", "params": { "path": "calc.exe" } }
+        },
+        {
+          "id": "b-screenshot", "row": 0, "col": 2,
+          "label": "Screenshot", "icon": "photo_camera", "color": "#16a085",
+          "action": { "provider": "os", "verb": "hotkey", "params": { "keys": ["win", "shift", "s"] } }
+        },
+        {
+          "id": "b-lock", "row": 0, "col": 3,
+          "label": "Lock PC", "icon": "lock", "color": "#8e44ad",
+          "action": { "provider": "os", "verb": "hotkey", "params": { "keys": ["win", "l"] } }
+        }
+      ]
     }
   ]
 }

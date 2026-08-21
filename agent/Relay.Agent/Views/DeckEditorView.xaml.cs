@@ -45,10 +45,84 @@ public partial class DeckEditorView : UserControl
         _loading = true;
         ColsBox.SelectedItem = Clamp(_work.Grid.Cols);
         RowsBox.SelectedItem = Clamp(_work.Grid.Rows);
+        PopulatePages(0);
         _loading = false;
 
         RebuildGrid();
         Select(null);
+    }
+
+    private void PopulatePages(int select)
+    {
+        PageBox.Items.Clear();
+        foreach (var p in _work.Pages)
+            PageBox.Items.Add(string.IsNullOrWhiteSpace(p.Name) ? p.Id : p.Name);
+        if (select >= 0 && select < PageBox.Items.Count) PageBox.SelectedIndex = select;
+    }
+
+    private void Page_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading) return;
+        ApplySelected();
+        var idx = PageBox.SelectedIndex;
+        if (idx < 0 || idx >= _work.Pages.Count) return;
+        _page = _work.Pages[idx];
+        Select(null);
+    }
+
+    private void AddPage_Click(object sender, RoutedEventArgs e)
+    {
+        ApplySelected();
+        var page = new Page { Id = "p-" + Guid.NewGuid().ToString("n")[..6], Name = $"Page {_work.Pages.Count + 1}" };
+        _work.Pages.Add(page);
+        _page = page;
+        _loading = true; PopulatePages(_work.Pages.Count - 1); _loading = false;
+        Select(null);
+    }
+
+    private void RenamePage_Click(object sender, RoutedEventArgs e)
+    {
+        var name = PromptText("Rename page", _page.Name);
+        if (string.IsNullOrWhiteSpace(name)) return;
+        _page.Name = name.Trim();
+        var idx = _work.Pages.IndexOf(_page);
+        _loading = true; PopulatePages(idx); _loading = false;
+    }
+
+    private void DeletePage_Click(object sender, RoutedEventArgs e)
+    {
+        if (_work.Pages.Count <= 1) { MessageBox.Show("A deck needs at least one page.", "Relay"); return; }
+        if (MessageBox.Show($"Delete page \"{_page.Name}\" and its buttons?", "Relay",
+                MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
+        _work.Pages.Remove(_page);
+        _page = _work.Pages[0];
+        _loading = true; PopulatePages(0); _loading = false;
+        Select(null);
+    }
+
+    private string? PromptText(string title, string initial)
+    {
+        var tb = new TextBox { Text = initial, Margin = new Thickness(16, 16, 16, 8), MinWidth = 260 };
+        var ok = new Button { Content = "OK", Width = 80, IsDefault = true, Margin = new Thickness(0, 0, 8, 0), Style = (Style)FindResource("AccentButton") };
+        var cancel = new Button { Content = "Cancel", Width = 80, IsCancel = true };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(16, 0, 16, 12) };
+        buttons.Children.Add(ok);
+        buttons.Children.Add(cancel);
+        var panel = new DockPanel();
+        DockPanel.SetDock(buttons, Dock.Bottom);
+        panel.Children.Add(buttons);
+        panel.Children.Add(tb);
+
+        var win = new Window
+        {
+            Title = title, SizeToContent = SizeToContent.Height, Width = 320,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, Owner = Window.GetWindow(this),
+            ResizeMode = ResizeMode.NoResize, WindowStyle = WindowStyle.ToolWindow,
+            Background = (Brush)FindResource("Bg"), Content = panel,
+        };
+        string? result = null;
+        ok.Click += (_, _) => { result = tb.Text; win.DialogResult = true; };
+        return win.ShowDialog() == true ? result : null;
     }
 
     private static int Clamp(int v) => Math.Clamp(v, 1, 8);
