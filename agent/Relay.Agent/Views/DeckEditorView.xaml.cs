@@ -12,7 +12,7 @@ namespace Relay.Agent.Views;
 public partial class DeckEditorView : UserControl
 {
     private static readonly string[] Types =
-        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Open folder", "Run command", "Hold key (PTT)", "Toggle", "Screenshot", "MicForge" };
+        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Open folder", "Run command", "Hold key (PTT)", "Toggle", "Screenshot", "Open screenshots", "MicForge" };
 
     private static readonly string[] MicForgeControls =
         { "Mute", "Bypass", "Start / Stop", "Next preset", "Previous preset", "Preset by name", "DSP stage", "Input meter" };
@@ -359,6 +359,7 @@ public partial class DeckEditorView : UserControl
             case "Open URL": AddText("url", "URL"); break;
             case "Open folder": AddFolderPicker("folder", "Folder to open"); break;
             case "Screenshot": AddInfo("Captures all screens to Pictures\\Screenshots and copies it to the clipboard."); break;
+            case "Open screenshots": AddInfo("Opens your Pictures\\Screenshots folder in Explorer."); break;
             case "Run command": AddText("command", "Command (cmd)"); AddText("args", "Arguments (optional)"); break;
             case "Hold key (PTT)": AddText("keys", "Key(s) to hold while pressed (e.g. v)"); break;
             case "Toggle":
@@ -452,6 +453,7 @@ public partial class DeckEditorView : UserControl
             case "Open URL": SetVal("url", Str(p, "url")); break;
             case "Open folder": SetVal("folder", Str(p, "url")); break;
             case "Screenshot": break;
+            case "Open screenshots": break;
             case "Run command": SetVal("command", Str(p, "command")); SetVal("args", Str(p, "args")); break;
             case "Hold key (PTT)": SetVal("keys", Keys(p, "keys")); break;
             case "Toggle":
@@ -551,6 +553,7 @@ public partial class DeckEditorView : UserControl
             case "Open URL": verb = "open"; payload = new { url = Val("url") }; break;
             case "Open folder": verb = "open"; payload = new { url = Val("folder"), folder = true }; break;
             case "Screenshot": verb = "screenshot"; payload = new { }; break;
+            case "Open screenshots": verb = "open"; payload = new { special = "screenshots" }; break;
             case "Run command": provider = "script"; verb = "run"; payload = new { command = Val("command"), args = Val("args") }; break;
             case "Hold key (PTT)": verb = "holdkey"; payload = new { keys = ParseKeys(Val("keys")) }; break;
             case "Toggle":
@@ -765,8 +768,13 @@ public partial class DeckEditorView : UserControl
         if (string.Equals(a.Provider, "script", StringComparison.OrdinalIgnoreCase)) return "Run command";
         if (string.Equals(a.Verb, "screenshot", StringComparison.OrdinalIgnoreCase)) return "Screenshot";
         if (string.Equals(a.Verb, "open", StringComparison.OrdinalIgnoreCase))
+        {
+            if (a.Params.ValueKind == JsonValueKind.Object && a.Params.TryGetProperty("special", out var sp)
+                && sp.ValueKind == JsonValueKind.String && sp.GetString() == "screenshots")
+                return "Open screenshots";
             return a.Params.ValueKind == JsonValueKind.Object && a.Params.TryGetProperty("folder", out var f)
                 && f.ValueKind == JsonValueKind.True ? "Open folder" : "Open URL";
+        }
         return a.Verb.ToLowerInvariant() switch
         {
             "media" => "Media key",

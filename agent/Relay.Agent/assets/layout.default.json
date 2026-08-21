@@ -94,6 +94,11 @@
           "id": "b-lock", "row": 0, "col": 3,
           "label": "Lock PC", "icon": "lock", "color": "#8e44ad",
           "action": { "provider": "os", "verb": "hotkey", "params": { "keys": ["win", "l"] } }
+        },
+        {
+          "id": "b-shots", "row": 1, "col": 0,
+          "label": "Screenshots", "icon": "folder", "color": "#16a085",
+          "action": { "provider": "os", "verb": "open", "params": { "special": "screenshots" } }
         }
       ]
     }

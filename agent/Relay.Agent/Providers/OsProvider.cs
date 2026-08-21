@@ -52,9 +52,14 @@ public sealed class OsProvider : IProvider
                 break;
 
             case "open":
-                var url = GetString(p, "url");
-                if (!string.IsNullOrWhiteSpace(url))
-                    Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                // A `special` token resolves to a known folder (portable across PCs); else open `url`.
+                var target = GetString(p, "special") switch
+                {
+                    "screenshots" => ScreenshotsDir(),
+                    _ => GetString(p, "url"),
+                };
+                if (!string.IsNullOrWhiteSpace(target))
+                    Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
                 break;
 
             case "screenshot":
@@ -79,9 +84,7 @@ public sealed class OsProvider : IProvider
             using (var g = System.Drawing.Graphics.FromImage(bmp))
                 g.CopyFromScreen(bounds.Location, System.Drawing.Point.Empty, bounds.Size);
 
-            var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Screenshots");
-            Directory.CreateDirectory(dir);
-            var file = Path.Combine(dir, $"Relay-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.png");
+            var file = Path.Combine(ScreenshotsDir(), $"Relay-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.png");
             bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png);
 
             // Clipboard access must be on an STA thread; best-effort so a paste is ready immediately.
@@ -96,6 +99,14 @@ public sealed class OsProvider : IProvider
             _log.Info($"screenshot saved to {file} (and copied to clipboard).");
         }
         catch (Exception ex) { _log.Error("screenshot failed.", ex); }
+    }
+
+    /// <summary>The folder screenshots are saved to (Pictures\Screenshots), created if missing.</summary>
+    private static string ScreenshotsDir()
+    {
+        var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Screenshots");
+        Directory.CreateDirectory(dir);
+        return dir;
     }
 
     private static string? GetString(JsonElement p, string name)
