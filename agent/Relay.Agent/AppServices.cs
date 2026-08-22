@@ -3,6 +3,7 @@ using Relay.Agent.Layout;
 using Relay.Agent.Profiles;
 using Relay.Agent.Providers;
 using Relay.Agent.Server;
+using Relay.Agent.Update;
 
 namespace Relay.Agent;
 
@@ -20,4 +21,5 @@ public sealed class AppServices
     public required Cert Cert { get; init; }
     public required ProfileStore ProfileStore { get; init; }
     public required ProfileManager Profiles { get; init; }
+    public required UpdateChecker Updater { get; init; }
 }

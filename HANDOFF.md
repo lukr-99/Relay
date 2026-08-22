@@ -1,7 +1,9 @@
 # Relay — Handoff & Status
 
-_Last updated: 2026-08-21 (v0.3.0: phone preset picker, MicForge Phase 2, mDNS, versioned installers;
-agent v0.4.0: profile auto-switch by foreground app)._
+_Last updated: 2026-08-22. Current versions: **agent 0.7.0**, **phone app 0.4.3**, **MicForge 1.7.0**.
+Highlights since v0.3.0: profile auto-switch, real screenshot capture + folder actions, MicForge
+Phase 2b (phone slider row for live params), a dedicated Presets tab, per-button press effects
+(incl. cartoonish particle bursts), and a GitHub-Releases auto-updater._
 
 > **Paths are machine-specific.** This handoff was first written on a machine with the repos under
 > `C:\Users\krejci\Code\…`; they currently also live at `F:\Code\Relay` and `F:\Code\MicForge`.
@@ -22,10 +24,13 @@ renderer (Kotlin/Compose); the **Windows agent** (WPF) is the brain. They talk o
 QR, tap a button, an action fires on the PC; edit the deck in the agent and the phone updates
 live.
 
-As of **v0.3.0** the deck also has a **phone-side preset picker**, **MicForge Phase 2** (DSP-stage
-toggles + a live input-level meter), and **mDNS auto-discovery**. Both apps build **versioned
-installers** — a self-contained Windows installer for the agent and a signed release APK. Agent
-**v0.4.0** adds **profile auto-switch**: the deck follows your foreground app automatically.
+The deck also has: a **phone-side preset picker**; **MicForge control** including DSP-stage toggles,
+a live **input-level meter**, and a phone **slider row** that drives MicForge params live; **mDNS
+auto-discovery**; **profile auto-switch** (the deck follows your foreground app); **native screenshot
+capture** + open-folder actions; **per-button press effects** (pop/bounce/glow/shake/ripple/flash +
+particle bursts: fire/explosion/confetti/sparkle/hearts/stars); a dedicated **Presets tab**; and a
+**self-update** check against GitHub Releases. Both apps build **versioned installers** (a
+self-contained Windows installer for the agent, a signed release APK for the phone).
 
 ---
 
@@ -85,6 +90,7 @@ Start-Process installer\MicForge-Setup-<ver>.exe -ArgumentList "/VERYSILENT","/S
 ```powershell
 .\tools\build-installer.ps1        # -> agent\installer\Relay-Setup-<ver>.exe (self-contained, per-user)
 .\tools\build-apk.ps1              # -> android\dist\Relay-<ver>.apk (signed release)
+.\tools\publish-release.ps1        # build installer + publish a GitHub Release (feeds the auto-updater)
 ```
 - The agent installer bundles the .NET 10 runtime — end users need nothing installed. Version comes
   from the csproj `<Version>`. Needs **Inno Setup 6**.
@@ -109,7 +115,7 @@ under **"Found on your network"** on the pair screen. Token lives in `%AppData%\
 - **Phone app:** Compose grid (positional, scales to grid size), multi-page pager, QR + deep-link
   pairing, haptics, keep-screen-on, auto-reconnect with backoff, press-and-hold (PTT), toggle
   recolor via `button.state`.
-- **MicForge control (v1.6.3):** mute / bypass / start-stop / preset (by name or next/prev) from a
+- **MicForge control (MicForge 1.7.0):** mute / bypass / start-stop / preset (by name or next/prev) from a
   deck button, **with live two-way state** — a Mute button lights up whenever the mic is muted
   from anywhere. Loopback named-pipe contract (`\\.\pipe\MicForge.DeckControl`, NDJSON). Editor has
   a **MicForge** action type.
@@ -136,6 +142,28 @@ under **"Found on your network"** on the pair screen. Token lives in `%AppData%\
   (editor or phone) holds until you focus a different app. Edited in the agent's new **Profiles** tab
   (`Views/ProfilesView.xaml`), master toggle **off by default**, stored in
   `%AppData%\Relay\profiles.json`. Agent-only — phones follow via the existing layout/preset push.
+- **Screenshot capture + folder actions:** `os.screenshot` natively captures all monitors to
+  `Pictures\Screenshots` + clipboard (was Win+Shift+S, which only opened the overlay). Editor gains
+  **Screenshot**, **Open folder** (with a Browse… picker), and **Open screenshots** action types;
+  `os.open {special:"screenshots"}` opens the folder portably (`Providers/OsProvider.cs`).
+- **MicForge Phase 2b — phone slider row:** a new `SliderDef` deck element drives a MicForge param
+  live. Drag on the phone → `slider.set {id,value}` → agent routes to `micforge/param` → MicForge sets
+  the param; the agent pushes `slider.value` back (synced on connect). MicForge exposes a `params`
+  catalog + `{"op":"param"}`. Authored in the Deck editor's **Sliders** panel (live param picker);
+  the ＋MicForge preset ships an Input-Gain slider. (`LayoutModels.cs`, `MicForgeProvider.cs`,
+  `ActionRouter.SetSliderAsync`, `net/DeckScreen.kt`.)
+- **Press effects:** an optional per-button `effect` (like icon/colour) plays a one-shot phone
+  animation on tap — geometric (pop / bounce / glow / shake / ripple / flash) and cartoonish emoji
+  particle bursts (fire / explosion / confetti / sparkle / hearts / stars). Picked in the editor's
+  Appearance → **Press effect**; rendered in `DeckScreen.kt` (`Particle` system, seeded per tap).
+- **Presets tab (reorg):** preset management moved to a dedicated **Presets** tab (switch / New /
+  Duplicate / Rename / Delete); the Deck editor keeps only a preset **chooser**; the ＋MicForge preset
+  starter lives in **Settings** (`Views/PresetsView.*`, shared `Views/Prompt.cs`).
+- **Auto-updater (agent 0.7.0):** on startup + a Settings **"Check for updates"** button, the agent
+  reads the repo's latest **public** GitHub Release (`Update/UpdateChecker.cs`), and if newer downloads
+  the installer and runs it silently, then exits so it can replace itself. Ship a release with
+  `tools\publish-release.ps1`. **Requires the repo's Releases to be public**
+  (`gh repo edit lukr-99/Relay --visibility public`).
 - **Versioned installers (v0.3.0):** `tools\build-installer.ps1` → self-contained agent installer
   `agent\installer\Relay-Setup-<ver>.exe` (Inno Setup); `tools\build-apk.ps1` → signed
   `android\dist\Relay-<ver>.apk`. Agent version = csproj `<Version>` (surfaced via `AppInfo.Version`);
@@ -145,20 +173,22 @@ under **"Found on your network"** on the pair screen. Token lives in `%AppData%\
 
 ## What's TO DO ⏭️ (roughly prioritized)
 
-The items that headlined recent handoffs — **phone preset picker**, **MicForge Phase 2**, **mDNS**,
-and now **profile auto-switch** — are all **done** (see What's DONE). Next up:
+Most of the roadmap is done (preset picker, MicForge Phase 2 + 2b, mDNS, profile auto-switch,
+screenshots, press effects, Presets tab, auto-updater). What's left is optional:
 
-### 1. MicForge Phase 2b — parameter nudges  `med / med`
-`param.set {stage,param,value}` / `nudge {…, delta}` for input gain / threshold, driving a phone
-slider row. Extends the same pipe contract (stages + meter already landed).
-
-### 2. OBS provider  `high / med`
+### 1. OBS provider  `high / med`
 obs-websocket v5 (scenes / mute / stream-record) with live scene highlight. Was NU1101-unavailable
 before — revisit the package (Makaretu restored fine now, so the feed may be healthy again).
 
-### 3. Backlog (see ROADMAP.md)
-Per-orientation layouts; a general multi-step macro editor; OSC/MIDI inbound; a configurable "clip"
-hotkey; auto-updater (check GitHub Releases — the installers make this easy now).
+### 2. Backlog (see ROADMAP.md)
+Portrait-mode responsive card sizing; now-playing (SMTC) badge; a general multi-step macro editor;
+OSC/MIDI inbound; iOS/PWA client; themeable button styles.
+
+### First release for the auto-updater
+The updater is built but no GitHub Release exists yet. To enable self-update:
+1. Make the repo's Releases public: `gh repo edit lukr-99/Relay --visibility public`.
+2. Cut a release: `.\tools\publish-release.ps1` (builds the installer + `gh release create agent-vX.Y.Z`).
+Installed agents then see it via **Settings → Check for updates**.
 
 ---
 

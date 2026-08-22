@@ -4,6 +4,7 @@ using Relay.Agent.Layout;
 using Relay.Agent.Profiles;
 using Relay.Agent.Providers;
 using Relay.Agent.Server;
+using Relay.Agent.Update;
 
 namespace Relay.Agent;
 
@@ -36,13 +37,17 @@ public partial class App : Application
         var profileStore = new ProfileStore(config, log);
         var profiles = new ProfileManager(new ForegroundWatcher(), profileStore, layout, log);
         profiles.Start();
+        var updater = new UpdateChecker(log);
 
         _svc = new AppServices
         {
             Config = config, Log = log, Layout = layout, Providers = providers,
             Router = router, Sessions = sessions, Server = server, Mdns = mdns, Cert = cert,
-            ProfileStore = profileStore, Profiles = profiles,
+            ProfileStore = profileStore, Profiles = profiles, Updater = updater,
         };
+
+        // Best-effort startup update check — logs if a newer build is on GitHub Releases.
+        _ = updater.CheckAsync();
 
         _tray = new TrayIcon(_svc, ShowMain, QuitApp);
         ShowMain();
@@ -55,6 +60,9 @@ public partial class App : Application
         if (_main.WindowState == WindowState.Minimized) _main.WindowState = WindowState.Normal;
         _main.Activate();
     }
+
+    /// <summary>Quit the agent so a downloaded installer can replace its files (used by the updater).</summary>
+    public static void QuitForUpdate() => (Current as App)?.QuitApp();
 
     private void QuitApp()
     {

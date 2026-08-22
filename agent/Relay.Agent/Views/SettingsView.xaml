@@ -56,6 +56,18 @@
                 </StackPanel>
             </Border>
 
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Updates" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="UpdateLine" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="CheckUpdateBtn" Content="Check for updates" Click="CheckUpdate_Click"/>
+                        <Button x:Name="InstallUpdateBtn" Content="Download &amp; install" Style="{StaticResource AccentButton}"
+                                Margin="10,0,0,0" Visibility="Collapsed" Click="InstallUpdate_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="About" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>

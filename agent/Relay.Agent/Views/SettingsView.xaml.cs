@@ -18,6 +18,7 @@ public partial class SettingsView : UserControl
         NameLine.Text = $"Device name   {svc.Config.DeviceName}";
         PortLine.Text = $"Port          {svc.Config.Port}";
         AboutLine.Text = $"Relay {AppInfo.Version} — an Android phone as a Stream Deck for Windows.";
+        UpdateLine.Text = $"You're on v{AppInfo.Version}.";
         UpdateScriptToggle();
     }
 
@@ -43,6 +44,44 @@ public partial class SettingsView : UserControl
         { MessageBox.Show("Couldn't add the MicForge preset.", "Relay"); return; }
         _svc.Layout.SetActive(name);   // becomes active + pushed; the Presets/Deck tabs pick it up
         MessageBox.Show($"Added the MicForge preset “{name}” and made it active.", "Relay");
+    }
+
+    private Relay.Agent.Update.UpdateChecker.UpdateInfo? _pendingUpdate;
+
+    private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        CheckUpdateBtn.IsEnabled = false;
+        UpdateLine.Text = "Checking…";
+        var info = await _svc.Updater.CheckAsync();
+        CheckUpdateBtn.IsEnabled = true;
+        _pendingUpdate = info;
+        if (info is null)
+        {
+            UpdateLine.Text = $"You're up to date (v{AppInfo.Version}).";
+            InstallUpdateBtn.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            UpdateLine.Text = $"Update available: v{info.Version} (you're on v{AppInfo.Version}).";
+            InstallUpdateBtn.Visibility = Visibility.Visible;
+        }
+    }
+
+    private async void InstallUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pendingUpdate is not { } info) return;
+        InstallUpdateBtn.IsEnabled = false;
+        UpdateLine.Text = $"Downloading v{info.Version}…";
+        if (await _svc.Updater.DownloadAndRunAsync(info))
+        {
+            MessageBox.Show("Installing the update — Relay will close and reopen.", "Relay");
+            App.QuitForUpdate();
+        }
+        else
+        {
+            InstallUpdateBtn.IsEnabled = true;
+            UpdateLine.Text = "Update failed to download. Try again, or grab it from GitHub Releases.";
+        }
     }
 
     private void OpenData_Click(object sender, RoutedEventArgs e)

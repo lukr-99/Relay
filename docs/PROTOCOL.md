@@ -67,6 +67,7 @@ Every WS **text** message is one JSON-RPC 2.0 object (or a batch array).
 | `deck.subscribe` | request | `{ ids?:[…] }` | `{ ok:true }` | Subscribe to state for these buttons (or all if omitted). |
 | `preset.list` | request | `{}` | `{ presets:[…], active }` | List the named deck presets and which is active. |
 | `preset.select` | notification | `{ name }` | — | Switch the active preset. The agent pushes the new `deck.layout` + `preset.changed` to all phones. |
+| `slider.set` | **notification** | `{ id, value }` | — | Drag a slider. The agent routes it to the slider's provider (e.g. `micforge/param`) with the value. |
 | `ping` | request | `{}` | `{ t }` | App-level RTT check (WS ping/pong also used at transport level). |
 
 ## 5. Methods (events) — agent → phone
@@ -79,6 +80,7 @@ Sent as **notifications** from the agent:
 | `preset.changed` | `{ presets:[…], active }` | Pushed when the active preset switches or the preset set changes (renamed/created/deleted), so phone-side pickers stay in sync. |
 | `button.state` | `{ id, on?, label?, color?, badge?, icon? }` | Live feedback: mute→red, active scene/preset highlight, level badge. Only changed fields are sent. |
 | `button.level` | `{ id, level }` | Live 0..1 value for a meter button (e.g. MicForge input level); rendered as a bar. Streamed ~10 Hz while a meter button is on the active deck. |
+| `slider.value` | `{ id, value }` | Current value for a slider (e.g. a MicForge param); pushed on connect and when the value changes, so the slider reflects the real state. |
 | `agent.notice` | `{ level, text }` | Toast on the phone (`info`\|`warn`\|`error`). E.g. "OBS disconnected". |
 | `session.bye` | `{ reason }` | Agent is closing the session (shutdown, unpaired, token revoked). |
 

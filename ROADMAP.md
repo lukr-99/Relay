@@ -54,17 +54,21 @@ instant.
   app. Rules (exe + optional title → deck) are edited in the agent's **Profiles** tab. Master toggle,
   off by default. The phone follows automatically via the existing `deck.layout`/`preset.changed` push.
 - **OSC + virtual MIDI inbound** — TouchOSC / MIDI pads drive the same actions. `med / med`
-- **Script provider** (allow-listed commands, opt-in). `med / med`
+- ✅ **Script provider** (allow-listed commands, opt-in) — done (`ScriptProvider`, off by default).
 - **Local web config UI** served by the agent (edit layouts in a browser). `med / med`
 - **Multi-PC** (one phone, several agents; pick per page). `low / high`
-- **Sliders / dials row** on the phone → `param.set` (MicForge gain, OBS volume). `med / high`
+- ✅ **Sliders / dials row** on the phone → `param.set` — done 2026-08-22 (MicForge params; `SliderDef`
+  + phone slider row + `slider.set`/`slider.value`). OBS volume would slot in once the OBS provider lands.
 
 ## Nice-to-haves / parking lot
 
 - Android widget / quick-tile for a few top actions. `low / med`
 - Elevated-agent option for fullscreen-exclusive games. `med / low`
-- Auto-updater (check GitHub Releases). `med / med`
-- Import/export layouts; share layout files. `low / low`
+- ✅ Auto-updater (check GitHub Releases) — done 2026-08-22 (`Update/UpdateChecker.cs`; needs public
+  Releases + `tools/publish-release.ps1`).
+- ✅ Import/export layouts — done (Settings → Export/Import deck).
+- ✅ **Press effects** — per-button tap animations (pop/bounce/glow/shake/ripple/flash + emoji particle
+  bursts: fire/explosion/confetti/sparkle/hearts/stars). Done 2026-08-22.
 - iOS/PWA client (agent already serves a web UI — reuse it). `med / high`
 - Themeable button styles (rounded/flat, fonts). `low / low`
 

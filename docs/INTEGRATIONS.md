@@ -79,13 +79,14 @@ reading would deadlock the pipe).
 | `{"op":"stage","id":"…","value":true}` | enable/disable a DSP stage by id _(Phase 2)_ |
 | `{"op":"stage","id":"…"}` | toggle a DSP stage _(Phase 2)_ |
 | `{"op":"meter","enabled":true\|false}` | subscribe/unsubscribe to the input-level stream _(Phase 2)_ |
+| `{"op":"param","key":"<stageId>\|<label>","value":12.5}` | set a DSP parameter to an absolute value _(Phase 2b)_ |
 
 **MicForge → client**
 
 | Message | Meaning |
 |---|---|
 | `{"type":"hello","app":"MicForge","version":"…","protocol":1}` | sent once on connect |
-| `{"type":"state","mute":…,"bypass":…,"running":…,"preset":"…","presets":[…],"stages":[{id,title,enabled,canToggle}]}` | current state; pushed on connect and on every change. `stages` added in Phase 2. |
+| `{"type":"state",…,"stages":[{id,title,enabled,canToggle}],"params":[{key,stage,label,value,min,max,step,unit}]}` | current state; pushed on connect and on every change. `stages` added in Phase 2, `params` in Phase 2b. |
 | `{"type":"meter","in":0.0..1.0}` | input level, pushed ~10 Hz while a client is subscribed via `{"op":"meter"}` _(Phase 2)_ |
 
 The provider maps each `state` onto `button.state` for any deck button bound to `micforge` (mute /
@@ -106,8 +107,13 @@ action type (Mute / Bypass / Start-Stop / Next preset / Previous preset / Preset
   only while a meter button is on the active deck; MicForge then pushes `{"type":"meter","in":…}`
   ~10 Hz, forwarded to phones as `button.level`.
 
-Still open (future): **parameter nudges** — `param.set {stage,param,value}` / `nudge {…, delta}` for
-input gain, threshold, etc. — deck buttons or a phone slider row.
+### Phase 2b — parameter control ✅ (phone slider row, done 2026-08-22)
+
+- ✅ **DSP parameters:** MicForge's `state` carries a `params` catalog (`{key,stage,label,value,min,max,
+  step,unit}` for every tunable), and `{"op":"param","key":"<stageId>|<label>","value":…}` sets one
+  (clamped). Relay exposes these as a **`SliderDef`** deck element; a **slider row** on the phone drives
+  the param live (`slider.set` → `micforge/param`), and the agent pushes `slider.value` back so the
+  slider reflects the real value (synced on connect). Authored in the Deck editor's **Sliders** panel.
 
 > Any of the user's other apps can become deck-controllable by hosting the same tiny NDJSON pipe
 > contract — it's the one protocol Relay defines itself (see
