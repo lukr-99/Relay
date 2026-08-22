@@ -46,13 +46,13 @@ public partial class SettingsView : UserControl
         MessageBox.Show($"Added the MicForge preset “{name}” and made it active.", "Relay");
     }
 
-    private Relay.Agent.Update.UpdateChecker.UpdateInfo? _pendingUpdate;
+    private DotNetLib.Core.Updating.ReleaseInfo? _pendingUpdate;
 
     private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
     {
         CheckUpdateBtn.IsEnabled = false;
         UpdateLine.Text = "Checking…";
-        var info = await _svc.Updater.CheckAsync();
+        var info = await _svc.Updater.CheckForUpdateAsync();
         CheckUpdateBtn.IsEnabled = true;
         _pendingUpdate = info;
         if (info is null)
@@ -72,15 +72,17 @@ public partial class SettingsView : UserControl
         if (_pendingUpdate is not { } info) return;
         InstallUpdateBtn.IsEnabled = false;
         UpdateLine.Text = $"Downloading v{info.Version}…";
-        if (await _svc.Updater.DownloadAndRunAsync(info))
+        try
         {
+            await _svc.Updater.DownloadAndLaunchAsync(info, "/SILENT /SUPPRESSMSGBOXES /NORESTART");
             MessageBox.Show("Installing the update — Relay will close and reopen.", "Relay");
             App.QuitForUpdate();
         }
-        else
+        catch (Exception ex)
         {
             InstallUpdateBtn.IsEnabled = true;
             UpdateLine.Text = "Update failed to download. Try again, or grab it from GitHub Releases.";
+            _svc.Log.Error("update install failed.", ex);
         }
     }
 

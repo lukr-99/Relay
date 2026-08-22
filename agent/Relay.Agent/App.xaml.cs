@@ -2,9 +2,10 @@ using System.Windows;
 using Relay.Agent.Discovery;
 using Relay.Agent.Layout;
 using Relay.Agent.Profiles;
+using System.Net.Http;
 using Relay.Agent.Providers;
 using Relay.Agent.Server;
-using Relay.Agent.Update;
+using DotNetLib.Core.Updating;
 
 namespace Relay.Agent;
 
@@ -37,7 +38,10 @@ public partial class App : Application
         var profileStore = new ProfileStore(config, log);
         var profiles = new ProfileManager(new ForegroundWatcher(), profileStore, layout, log);
         profiles.Start();
-        var updater = new UpdateChecker(log);
+        var http = new HttpClient();
+        var updater = new UpdateService(
+            new GitHubReleaseSource(http, "lukr-99", "Relay", name => name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)),
+            AppInfo.Version, http);
 
         _svc = new AppServices
         {
@@ -47,7 +51,11 @@ public partial class App : Application
         };
 
         // Best-effort startup update check — logs if a newer build is on GitHub Releases.
-        _ = updater.CheckAsync();
+        _ = Task.Run(async () =>
+        {
+            var release = await updater.CheckForUpdateAsync();
+            if (release is not null) log.Info($"update available: {release.Version} (running {AppInfo.Version}).");
+        });
 
         _tray = new TrayIcon(_svc, ShowMain, QuitApp);
         ShowMain();
