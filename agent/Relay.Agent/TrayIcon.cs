@@ -10,6 +10,8 @@ internal sealed class TrayIcon : IDisposable
     public TrayIcon(AppServices svc, Action showWindow, Action quit)
     {
         var menu = new ContextMenuStrip();
+        menu.Items.Add(new ToolStripMenuItem($"Relay v{AppInfo.Version}") { Enabled = false });
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Open Relay", null, (_, _) => showWindow());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit Relay", null, (_, _) => quit());
@@ -18,7 +20,7 @@ internal sealed class TrayIcon : IDisposable
         {
             Icon = IconFactory.CreateTrayIcon(),
             Visible = true,
-            Text = $"Relay — {svc.Config.DeviceName}",
+            Text = $"Relay v{AppInfo.Version} — {svc.Config.DeviceName}",
             ContextMenuStrip = menu,
         };
         _icon.DoubleClick += (_, _) => showWindow();
