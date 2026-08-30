@@ -9,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -446,7 +447,12 @@ private fun DeckButton(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(4.dp),
             ) {
-                Icon(iconFor(b.icon), contentDescription = b.label, tint = fg, modifier = Modifier.size(iconSize))
+                val customIcon = remember(b.icon) { decodeIconBitmap(b.icon) }
+                if (customIcon != null) {
+                    Image(bitmap = customIcon, contentDescription = b.label, modifier = Modifier.size(iconSize))
+                } else {
+                    Icon(iconFor(b.icon), contentDescription = b.label, tint = fg, modifier = Modifier.size(iconSize))
+                }
                 if (b.label.isNotBlank() && w >= 46.dp) {
                     Text(
                         b.label,

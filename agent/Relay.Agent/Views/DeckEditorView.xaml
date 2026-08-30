@@ -84,20 +84,35 @@
                             <TextBlock Text="APPEARANCE" Foreground="{StaticResource Accent}" FontWeight="SemiBold"
                                        FontSize="11" Margin="0,12,0,8"/>
                             <TextBlock Text="Icon" Style="{StaticResource Muted}" Margin="0,0,0,4"/>
-                            <ComboBox x:Name="IconBox" Margin="0,0,0,12">
-                                <ComboBox.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Width="290"/>
-                                    </ItemsPanelTemplate>
-                                </ComboBox.ItemsPanel>
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="22"
-                                                   Width="40" Height="40" TextAlignment="Center" Padding="0,7,0,0"
-                                                   ToolTip="{Binding Name}"/>
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="IconPreview" Grid.Column="0" Width="40" Height="40" CornerRadius="6"
+                                        Background="{StaticResource Surface2}" BorderBrush="{StaticResource Border}"
+                                        BorderThickness="1"/>
+                                <ComboBox x:Name="IconBox" Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center"
+                                          SelectionChanged="Icon_Changed">
+                                    <ComboBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Width="240"/>
+                                        </ItemsPanelTemplate>
+                                    </ComboBox.ItemsPanel>
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Glyph}" FontFamily="Segoe MDL2 Assets" FontSize="22"
+                                                       Width="40" Height="40" TextAlignment="Center" Padding="0,7,0,0"
+                                                       ToolTip="{Binding Name}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <Button Content="From URL…" Click="IconFromUrl_Click"/>
+                                <Button Content="Upload…" Margin="8,0,0,0" Click="IconUpload_Click"/>
+                                <Button Content="Clear" Margin="8,0,0,0" Click="IconClear_Click"/>
+                            </StackPanel>
 
                             <TextBlock Text="Colour" Style="{StaticResource Muted}" Margin="0,0,0,4"/>
                             <Grid Margin="0,0,0,12">

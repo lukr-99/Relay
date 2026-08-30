@@ -28,7 +28,11 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
+import android.graphics.BitmapFactory
+import android.util.Base64
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /** Maps a layout icon name to a bundled Compose icon. Keep in sync with the agent's IconCatalog. */
@@ -60,6 +64,29 @@ fun iconFor(name: String?): ImageVector = when (name) {
     "bolt" -> Icons.Filled.Bolt
     "power" -> Icons.Filled.PowerSettingsNew
     else -> Icons.Filled.TouchApp
+}
+
+private val iconBitmapCache = HashMap<String, ImageBitmap>()
+
+/**
+ * Decodes a custom button icon carried as a data URI ("data:image/png;base64,....") into an
+ * [ImageBitmap], or returns null for catalog icon names (which [iconFor] renders instead). The agent
+ * embeds URL-resolved favicons and uploaded images this way. Results are cached by the icon string so
+ * repeated layout pushes don't re-decode the same image.
+ */
+fun decodeIconBitmap(icon: String?): ImageBitmap? {
+    if (icon == null || !icon.startsWith("data:image", ignoreCase = true)) return null
+    iconBitmapCache[icon]?.let { return it }
+    val comma = icon.indexOf(',')
+    if (comma < 0) return null
+    return runCatching {
+        val bytes = Base64.decode(icon.substring(comma + 1), Base64.DEFAULT)
+        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
+        val image = bitmap.asImageBitmap()
+        if (iconBitmapCache.size > 64) iconBitmapCache.clear()
+        iconBitmapCache[icon] = image
+        image
+    }.getOrNull()
 }
 
 /** Parses "#RRGGBB" (or "#AARRGGBB") to a Compose [Color], falling back to a neutral surface. */

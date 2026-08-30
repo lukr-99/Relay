@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using Relay.Agent.Icons;
 using Relay.Agent.Layout;
 using Page = Relay.Agent.Layout.Page;
 
@@ -31,6 +32,8 @@ public partial class DeckEditorView : UserControl
 
     private readonly Dictionary<string, Control> _p = new();
     private string? _selectedId;
+    // The selected button's current icon: a catalog name, or a "data:image/..." URI for a custom image.
+    private string? _icon;
     private string _loadedPreset = "";
     private bool _loading;
     private bool _loadingPresets;
@@ -195,14 +198,18 @@ public partial class DeckEditorView : UserControl
             cell.BorderBrush = (Brush)FindResource("Accent");
 
             var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            stack.Children.Add(new TextBlock
-            {
-                Text = Glyph(b.Icon),
-                FontFamily = new FontFamily("Segoe MDL2 Assets"),
-                FontSize = 24,
-                Foreground = new SolidColorBrush(fg),
-                HorizontalAlignment = HorizontalAlignment.Center,
-            });
+            var iconImg = IconResolver.Decode(b.Icon);
+            if (iconImg is not null)
+                stack.Children.Add(new Image { Source = iconImg, Width = 30, Height = 30, Stretch = Stretch.Uniform });
+            else
+                stack.Children.Add(new TextBlock
+                {
+                    Text = Glyph(b.Icon),
+                    FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                    FontSize = 24,
+                    Foreground = new SolidColorBrush(fg),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                });
             stack.Children.Add(new TextBlock
             {
                 Text = b.Label,
@@ -263,7 +270,8 @@ public partial class DeckEditorView : UserControl
 
         _loading = true;
         LabelBox.Text = b.Label;
-        IconBox.SelectedItem = IconBox.Items.Cast<IconChoice>().FirstOrDefault(x => x.Name == b.Icon);
+        _icon = b.Icon;
+        SyncIconUi();
         ColorBox.Text = b.Color ?? "";
         EffectBox.SelectedItem = Effects.FirstOrDefault(x => x.Equals(b.Effect, StringComparison.OrdinalIgnoreCase)) ?? "None";
         var act = b.Action ?? b.HoldAction;
@@ -466,7 +474,7 @@ public partial class DeckEditorView : UserControl
         var b = _selectedId is null ? null : _page.Buttons.FirstOrDefault(x => x.Id == _selectedId);
         if (b is null) return;
         b.Label = LabelBox.Text.Trim();
-        b.Icon = (IconBox.SelectedItem as IconChoice)?.Name;
+        b.Icon = _icon;
         b.Color = string.IsNullOrWhiteSpace(ColorBox.Text) ? null : ColorBox.Text.Trim();
         b.Effect = EffectBox.SelectedItem is string ef && ef != "None" ? ef.ToLowerInvariant() : null;
         var type = TypeBox.SelectedItem as string ?? "Hotkey";
@@ -474,6 +482,79 @@ public partial class DeckEditorView : UserControl
         if (type == "Hold key (PTT)") { b.HoldAction = act; b.Action = null; }
         else { b.Action = act; b.HoldAction = null; }
         RebuildGrid();
+    }
+
+    // ── icon picker (catalog name, resolved-from-URL image, or uploaded image) ─────────────
+    private void Icon_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading) return;
+        if (IconBox.SelectedItem is IconChoice ic) { _icon = ic.Name; UpdateIconPreview(); }
+    }
+
+    private async void IconFromUrl_Click(object sender, RoutedEventArgs e)
+    {
+        var url = PromptText("Icon from website (e.g. github.com)", "");
+        if (string.IsNullOrWhiteSpace(url)) return;
+        try
+        {
+            _icon = await IconResolver.FromUrlAsync(url.Trim());
+            IconBox.SelectedItem = null;
+            UpdateIconPreview();
+            RebuildGrid();
+        }
+        catch (Exception ex) { MessageBox.Show("Couldn't fetch an icon: " + ex.Message, "Relay"); }
+    }
+
+    private void IconUpload_Click(object sender, RoutedEventArgs e)
+    {
+        using var d = new System.Windows.Forms.OpenFileDialog
+        {
+            Title = "Choose a button icon",
+            Filter = "Images (*.png;*.jpg;*.jpeg;*.ico;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.ico;*.bmp;*.gif|All files (*.*)|*.*",
+        };
+        if (d.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+        try
+        {
+            _icon = IconResolver.FromFile(d.FileName);
+            IconBox.SelectedItem = null;
+            UpdateIconPreview();
+            RebuildGrid();
+        }
+        catch (Exception ex) { MessageBox.Show("Couldn't load that image: " + ex.Message, "Relay"); }
+    }
+
+    private void IconClear_Click(object sender, RoutedEventArgs e)
+    {
+        _icon = null;
+        IconBox.SelectedItem = null;
+        UpdateIconPreview();
+        RebuildGrid();
+    }
+
+    /// <summary>Reflect <see cref="_icon"/> into the picker: select the matching catalog entry for a named
+    /// icon, or clear the selection for a custom image. Always refreshes the preview.</summary>
+    private void SyncIconUi()
+    {
+        IconBox.SelectedItem = IconResolver.IsImage(_icon)
+            ? null
+            : IconBox.Items.Cast<IconChoice>().FirstOrDefault(x => x.Name == _icon);
+        UpdateIconPreview();
+    }
+
+    private void UpdateIconPreview()
+    {
+        var img = IconResolver.Decode(_icon);
+        IconPreview.Child = img is not null
+            ? new Image { Source = img, Stretch = Stretch.Uniform, Margin = new Thickness(6) }
+            : new TextBlock
+            {
+                Text = Glyph(_icon),
+                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontSize = 20,
+                Foreground = (Brush)FindResource("Text"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
     }
 
     private ActionDef ReadAction(string type)
