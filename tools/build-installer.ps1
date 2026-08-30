@@ -31,7 +31,7 @@ Write-Host "Relay agent version $version" -ForegroundColor Cyan
 Get-Process Relay.Agent -ErrorAction SilentlyContinue | ForEach-Object {
     Write-Host "Stopping running Relay.Agent (pid $($_.Id))..." -ForegroundColor Yellow
     $_ | Stop-Process -Force -ErrorAction SilentlyContinue
-    if (-not $?) { Write-Host "  could not stop pid $($_.Id) (elevated?) — continuing." -ForegroundColor Yellow }
+    if (-not $?) { Write-Host "  could not stop pid $($_.Id) (elevated?) - continuing." -ForegroundColor Yellow }
 }
 
 # ---- self-contained publish ----
