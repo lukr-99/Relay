@@ -33,6 +33,11 @@ class PairingStore(context: Context) {
         get() = prefs.getInt("cardMinDp", 96)
         set(v) = prefs.edit().putInt("cardMinDp", v).apply()
 
+    /** Whether to check GitHub for a newer app APK on launch (the in-app updater). */
+    var autoUpdate: Boolean
+        get() = prefs.getBoolean("autoUpdate", true)
+        set(v) = prefs.edit().putBoolean("autoUpdate", v).apply()
+
     fun save(host: String, port: Int, token: String, fp: String) {
         prefs.edit()
             .putString("host", host)

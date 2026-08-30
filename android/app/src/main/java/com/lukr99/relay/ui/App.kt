@@ -1,5 +1,6 @@
 package com.lukr99.relay.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
@@ -7,13 +8,17 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lukr99.relay.net.AppUpdater
 import com.lukr99.relay.net.ConnState
+import com.lukr99.relay.settings.PairingStore
 
 @Composable
 fun App(vm: DeckViewModel) {
@@ -26,6 +31,18 @@ fun App(vm: DeckViewModel) {
     val presets by vm.client.presets.collectAsStateWithLifecycle()
 
     var showSettings by remember { mutableStateOf(false) }
+
+    // On launch, quietly check GitHub for a newer app APK; a toast points to Settings › Updates.
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        val store = PairingStore(context)
+        if (store.autoUpdate) {
+            val rel = AppUpdater.check(AppUpdater.currentVersion(context))
+            if (rel != null) {
+                Toast.makeText(context, "Relay ${rel.version} available — Settings › Updates", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     Scaffold(contentWindowInsets = WindowInsets.systemBars) { inner ->
         val current = layout
