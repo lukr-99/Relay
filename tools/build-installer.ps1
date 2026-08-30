@@ -18,16 +18,20 @@ $proj = Join-Path $repo "agent\Relay.Agent\Relay.Agent.csproj"
 $publish = Join-Path $repo "agent\publish"
 $iss = Join-Path $repo "agent\installer\Relay.iss"
 
-# ---- version from the csproj <Version> ----
+# ---- version from the csproj <VersionPrefix> (falls back to <Version>) ----
 [xml]$csproj = Get-Content $proj
-$version = ($csproj.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
-if (-not $version) { throw "No <Version> found in $proj" }
+$version = (@($csproj.Project.PropertyGroup.VersionPrefix) + @($csproj.Project.PropertyGroup.Version) |
+    Where-Object { $_ } | Select-Object -First 1)
+if (-not $version) { throw "No <VersionPrefix> or <Version> found in $proj" }
 Write-Host "Relay agent version $version" -ForegroundColor Cyan
 
 # ---- stop a running agent (it locks its output files) ----
+# An agent launched elevated can't be stopped from a non-elevated shell; warn and continue rather
+# than aborting (publish targets agent\publish, not the installed copy, so the build still succeeds).
 Get-Process Relay.Agent -ErrorAction SilentlyContinue | ForEach-Object {
     Write-Host "Stopping running Relay.Agent (pid $($_.Id))..." -ForegroundColor Yellow
-    $_ | Stop-Process -Force
+    $_ | Stop-Process -Force -ErrorAction SilentlyContinue
+    if (-not $?) { Write-Host "  could not stop pid $($_.Id) (elevated?) — continuing." -ForegroundColor Yellow }
 }
 
 # ---- self-contained publish ----

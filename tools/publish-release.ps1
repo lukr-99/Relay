@@ -19,8 +19,9 @@ $repo = Split-Path -Parent $PSScriptRoot
 $proj = Join-Path $repo "agent\Relay.Agent\Relay.Agent.csproj"
 
 [xml]$csproj = Get-Content $proj
-$version = ($csproj.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
-if (-not $version) { throw "No <Version> found in $proj" }
+$version = (@($csproj.Project.PropertyGroup.VersionPrefix) + @($csproj.Project.PropertyGroup.Version) |
+    Where-Object { $_ } | Select-Object -First 1)
+if (-not $version) { throw "No <VersionPrefix> or <Version> found in $proj" }
 $tag = "agent-v$version"
 Write-Host "Publishing Relay $version (tag $tag)" -ForegroundColor Cyan
 
