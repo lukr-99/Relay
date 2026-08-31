@@ -52,14 +52,18 @@ public sealed class OsProvider : IProvider
                 break;
 
             case "open":
-                // A `special` token resolves to a known folder (portable across PCs); else open `url`.
-                var target = GetString(p, "special") switch
+                // A `special` token resolves to a known folder (portable across PCs); a `urls` array
+                // opens every entry (multi-URL button); otherwise open the single `url`.
+                if (GetString(p, "special") == "screenshots") { Open(ScreenshotsDir()); break; }
+                var urls = ReadStringArray(p, "urls");
+                if (urls.Count > 0)
                 {
-                    "screenshots" => ScreenshotsDir(),
-                    _ => GetString(p, "url"),
-                };
-                if (!string.IsNullOrWhiteSpace(target))
-                    Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+                    foreach (var u in urls)
+                        if (!string.IsNullOrWhiteSpace(u)) Open(u);
+                    break;
+                }
+                var target = GetString(p, "url");
+                if (!string.IsNullOrWhiteSpace(target)) Open(target);
                 break;
 
             case "screenshot":
@@ -72,6 +76,10 @@ public sealed class OsProvider : IProvider
         }
         return Task.CompletedTask;
     }
+
+    /// <summary>Opens a URL, file, or folder via the shell (the default app / browser).</summary>
+    private static void Open(string target)
+        => Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
 
     /// <summary>Captures all monitors to a PNG in Pictures\Screenshots and copies it to the clipboard —
     /// an actual capture, unlike the Win+Shift+S overlay which only opens the snip tool.</summary>

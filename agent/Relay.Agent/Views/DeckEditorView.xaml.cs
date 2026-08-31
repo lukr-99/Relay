@@ -13,7 +13,7 @@ namespace Relay.Agent.Views;
 public partial class DeckEditorView : UserControl
 {
     private static readonly string[] Types =
-        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Open folder", "Run command", "Hold key (PTT)", "Toggle", "Screenshot", "Open screenshots", "MicForge" };
+        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Open URLs", "Open folder", "Run command", "Hold key (PTT)", "Toggle", "Screenshot", "Open screenshots", "MicForge" };
 
     // Press animations the phone can play; "None" maps to no effect.
     private static readonly string[] Effects =
@@ -298,6 +298,7 @@ public partial class DeckEditorView : UserControl
                 break;
             case "Launch app": AddText("path", "Path / command"); AddText("args", "Arguments (optional)"); break;
             case "Open URL": AddText("url", "URL"); break;
+            case "Open URLs": AddMultiText("urls", "URLs (one per line)"); break;
             case "Open folder": AddFolderPicker("folder", "Folder to open"); break;
             case "Screenshot": AddInfo("Captures all screens to Pictures\\Screenshots and copies it to the clipboard."); break;
             case "Open screenshots": AddInfo("Opens your Pictures\\Screenshots folder in Explorer."); break;
@@ -338,6 +339,23 @@ public partial class DeckEditorView : UserControl
     {
         ParamHost.Children.Add(new TextBlock { Text = label, Style = (Style)FindResource("Muted"), Margin = new Thickness(0, 4, 0, 4) });
         var t = new TextBox { Margin = new Thickness(0, 0, 0, 8) };
+        ParamHost.Children.Add(t);
+        _p[key] = t;
+    }
+
+    /// <summary>A multi-line text field (one value per line), used for the multi-URL open button.</summary>
+    private void AddMultiText(string key, string label)
+    {
+        ParamHost.Children.Add(new TextBlock { Text = label, Style = (Style)FindResource("Muted"), Margin = new Thickness(0, 4, 0, 4) });
+        var t = new TextBox
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.NoWrap,
+            MinHeight = 90,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalContentAlignment = VerticalAlignment.Top,
+        };
         ParamHost.Children.Add(t);
         _p[key] = t;
     }
@@ -392,6 +410,7 @@ public partial class DeckEditorView : UserControl
             case "Type text": SetVal("value", Str(p, "value")); break;
             case "Launch app": SetVal("path", Str(p, "path")); SetVal("args", Str(p, "args")); break;
             case "Open URL": SetVal("url", Str(p, "url")); break;
+            case "Open URLs": SetVal("urls", UrlsText(p)); break;
             case "Open folder": SetVal("folder", Str(p, "url")); break;
             case "Screenshot": break;
             case "Open screenshots": break;
@@ -566,6 +585,7 @@ public partial class DeckEditorView : UserControl
             case "Type text": verb = "text"; payload = new { value = Val("value") }; break;
             case "Launch app": verb = "launch"; payload = new { path = Val("path"), args = Val("args") }; break;
             case "Open URL": verb = "open"; payload = new { url = Val("url") }; break;
+            case "Open URLs": verb = "open"; payload = new { urls = SplitLines(Val("urls")) }; break;
             case "Open folder": verb = "open"; payload = new { url = Val("folder"), folder = true }; break;
             case "Screenshot": verb = "screenshot"; payload = new { }; break;
             case "Open screenshots": verb = "open"; payload = new { special = "screenshots" }; break;
@@ -878,6 +898,15 @@ public partial class DeckEditorView : UserControl
     private static string Str(JsonElement p, string name)
         => p.ValueKind == JsonValueKind.Object && p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
 
+    /// <summary>The <c>urls</c> array of an open action, joined one-per-line for the multi-line editor.</summary>
+    private static string UrlsText(JsonElement p)
+        => p.ValueKind == JsonValueKind.Object && p.TryGetProperty("urls", out var arr) && arr.ValueKind == JsonValueKind.Array
+            ? string.Join(Environment.NewLine, arr.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()))
+            : "";
+
+    private static string[] SplitLines(string s)
+        => s.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
     private static JsonElement Params(JsonElement step)
         => step.ValueKind == JsonValueKind.Object && step.TryGetProperty("params", out var p) ? p : default;
 
@@ -904,6 +933,9 @@ public partial class DeckEditorView : UserControl
             if (a.Params.ValueKind == JsonValueKind.Object && a.Params.TryGetProperty("special", out var sp)
                 && sp.ValueKind == JsonValueKind.String && sp.GetString() == "screenshots")
                 return "Open screenshots";
+            if (a.Params.ValueKind == JsonValueKind.Object && a.Params.TryGetProperty("urls", out var us)
+                && us.ValueKind == JsonValueKind.Array)
+                return "Open URLs";
             return a.Params.ValueKind == JsonValueKind.Object && a.Params.TryGetProperty("folder", out var f)
                 && f.ValueKind == JsonValueKind.True ? "Open folder" : "Open URL";
         }
