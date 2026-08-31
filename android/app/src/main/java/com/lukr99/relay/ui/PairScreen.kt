@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,12 +46,15 @@ fun PairScreen(
     savedAgentId: String = "",
     savedToken: String = "",
     onConnect: (host: String, port: Int, token: String, fp: String) -> Unit,
+    onConnectUsb: (port: Int, token: String, onResult: (String?) -> Unit) -> Unit = { _, _, cb -> cb(null) },
 ) {
     val context = LocalContext.current
     var host by remember { mutableStateOf(initialHost) }
     var port by remember { mutableStateOf(if (initialPort > 0) initialPort.toString() else "8731") }
     var token by remember { mutableStateOf(initialToken) }
     var scanError by remember { mutableStateOf<String?>(null) }
+    var usbSearching by remember { mutableStateOf(false) }
+    var usbError by remember { mutableStateOf<String?>(null) }
 
     fun scan() {
         scanError = null
@@ -98,6 +102,36 @@ fun PairScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = {
+                usbError = null
+                if (token.isBlank()) { usbError = "Enter the token first, then tap Connect over USB."; return@Button }
+                usbSearching = true
+                onConnectUsb(port.toIntOrNull() ?: 8731, token.trim()) { peer ->
+                    usbSearching = false
+                    if (peer == null) usbError =
+                        "No USB link found. Turn on USB tethering on the phone (Settings › Connections › Mobile Hotspot and Tethering › USB tethering), then try again."
+                }
+            },
+            enabled = !usbSearching && state !is ConnState.Connecting,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Filled.Usb, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(if (usbSearching) "Searching for PC…" else "Connect over USB cable")
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Plug in USB, enable USB tethering, then tap. Needs the token above.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (usbError != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(usbError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
 
         if (discovered.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))

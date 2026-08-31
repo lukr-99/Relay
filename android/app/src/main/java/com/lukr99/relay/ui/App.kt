@@ -89,6 +89,7 @@ fun App(vm: DeckViewModel) {
                     savedAgentId = vm.savedAgentId,
                     savedToken = vm.savedToken,
                     onConnect = vm::connect,
+                    onConnectUsb = vm::connectOverUsb,
                 )
             }
         }
