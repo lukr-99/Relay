@@ -75,8 +75,17 @@ public partial class App : Application
     private void QuitApp()
     {
         IsQuitting = true;
-        try { _svc?.Server.Dispose(); _svc?.Mdns.Dispose(); _svc?.Profiles.Dispose(); } catch { }
-        _tray?.Dispose();
-        Shutdown();
+        _tray?.Dispose();                        // remove the tray icon immediately
+        try { _svc?.Mdns.Dispose(); } catch { }
+        try { _svc?.Profiles.Dispose(); } catch { }
+        _svc?.Log.Info("agent quit from tray.");
+
+        // Stop Kestrel off the UI thread with a hard cap: Server.Dispose() blocks on StopAsync(), which
+        // must not run on the WPF UI thread (it can freeze the quit). Then force-terminate — WPF
+        // Shutdown() alone can leave the process alive when a hosted component (Kestrel / mDNS) still
+        // holds a non-background thread, which is what left the tray process running after "Quit Relay".
+        try { Task.Run(() => { try { _svc?.Server.Dispose(); } catch { } }).Wait(TimeSpan.FromSeconds(2)); }
+        catch { }
+        Environment.Exit(0);
     }
 }
