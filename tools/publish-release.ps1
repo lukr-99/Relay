@@ -42,3 +42,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "release publish failed"
 }
 Write-Host "Published $tag with $([System.IO.Path]::GetFileName($setup))." -ForegroundColor Green
+
+# The repo mixes agent (agent-v*) and app (app-v*) releases. The agent's updater reads
+# /releases/latest, which returns the single most-recent release across ALL tags — so a newer app
+# release would hide the agent one. Pin this agent release as "latest" so the agent updater finds it.
+gh release edit $tag --repo lukr-99/Relay --latest | Out-Null
+if ($LASTEXITCODE -eq 0) { Write-Host "Pinned $tag as the repo's latest release." -ForegroundColor Green }
