@@ -8,7 +8,7 @@
     <RootNamespace>Relay.Agent</RootNamespace>
     <AssemblyName>Relay.Agent</AssemblyName>
     <ApplicationIcon>Relay.ico</ApplicationIcon>
-    <VersionPrefix>0.8.0</VersionPrefix>
+    <VersionPrefix>0.9.0</VersionPrefix>
     <!-- Debug/test builds carry a "-dev" pre-release suffix (e.g. 0.7.0-dev) so a build run for
          testing is never mistaken for a shipped release, and the auto-updater never treats a local
          build as the installed release. Release builds ship the clean version. -->
