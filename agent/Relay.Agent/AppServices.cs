@@ -13,6 +13,7 @@ public sealed class AppServices
     public required AppConfig Config { get; init; }
     public required Log Log { get; init; }
     public required LayoutStore Layout { get; init; }
+    public required ButtonLibraryStore ButtonLibrary { get; init; }
     public required ProviderRegistry Providers { get; init; }
     public required ActionRouter Router { get; init; }
     public required SessionManager Sessions { get; init; }

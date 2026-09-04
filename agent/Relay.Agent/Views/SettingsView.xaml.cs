@@ -46,6 +46,16 @@ public partial class SettingsView : UserControl
         MessageBox.Show($"Added the MicForge preset “{name}” and made it active.", "Relay");
     }
 
+    private void AddCoding_Click(object sender, RoutedEventArgs e)
+    {
+        var name = "Coding";
+        for (int n = 2; _svc.Layout.Exists(name); n++) name = $"Coding {n}";
+        if (!_svc.Layout.Create(name, PresetTemplates.Coding()))
+        { MessageBox.Show("Couldn't add the Coding preset.", "Relay"); return; }
+        _svc.Layout.SetActive(name);
+        MessageBox.Show($"Added the Coding preset “{name}” and made it active.", "Relay");
+    }
+
     private DotNetLib.Core.Updating.ReleaseInfo? _pendingUpdate;
 
     private async void CheckUpdate_Click(object sender, RoutedEventArgs e)

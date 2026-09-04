@@ -17,9 +17,12 @@
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
                 <StackPanel>
                     <TextBlock Text="Presets" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <TextBlock Text="Add a ready-made MicForge control deck (mute / bypass / preset cycling + an input-gain slider). Manage presets in the Presets tab."
+                    <TextBlock Text="Add ready-made decks for MicForge controls or coding shortcuts. Manage presets in the Presets tab."
                                Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                    <Button Content="＋ MicForge preset" Click="AddMicForge_Click" HorizontalAlignment="Left"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="＋ MicForge preset" Click="AddMicForge_Click"/>
+                        <Button Content="＋ Coding preset" Click="AddCoding_Click" Margin="8,0,0,0"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 

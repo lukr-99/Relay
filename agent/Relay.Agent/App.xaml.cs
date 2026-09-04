@@ -28,6 +28,7 @@ public partial class App : Application
 
         var cert = Cert.LoadOrCreate(config, log);
         var layout = new LayoutStore(config, log);
+        var buttonLibrary = new ButtonLibraryStore(config, log);
         var providers = new ProviderRegistry(config, layout, log);
         var router = new ActionRouter(providers, layout, log);
         var sessions = new SessionManager();
@@ -45,7 +46,7 @@ public partial class App : Application
 
         _svc = new AppServices
         {
-            Config = config, Log = log, Layout = layout, Providers = providers,
+            Config = config, Log = log, Layout = layout, ButtonLibrary = buttonLibrary, Providers = providers,
             Router = router, Sessions = sessions, Server = server, Mdns = mdns, Cert = cert,
             ProfileStore = profileStore, Profiles = profiles, Updater = updater,
         };

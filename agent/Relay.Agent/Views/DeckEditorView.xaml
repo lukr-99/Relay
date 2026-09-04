@@ -35,6 +35,7 @@
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="230"/>
                 <ColumnDefinition Width="330"/>
             </Grid.ColumnDefinitions>
 
@@ -67,8 +68,37 @@
                 </DockPanel>
             </Border>
 
-            <!-- Properties -->
+            <!-- Button library -->
             <Border Grid.Column="1" Style="{StaticResource Card}" Margin="16,0,0,0">
+                <DockPanel>
+                    <TextBlock Text="Library" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,10"
+                               DockPanel.Dock="Top"/>
+                    <TextBlock Text="Save buttons here, then drag them onto any preset page."
+                               Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"
+                               DockPanel.Dock="Top"/>
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                        <Button Content="Save selected" Click="SaveButtonToLibrary_Click"/>
+                        <Button Content="Delete" Style="{StaticResource DangerButton}" Margin="8,0,0,0"
+                                Click="DeleteLibraryButton_Click"/>
+                    </StackPanel>
+                    <ListBox x:Name="LibraryList"
+                             PreviewMouseLeftButtonDown="Library_PreviewMouseLeftButtonDown"
+                             MouseMove="Library_MouseMove">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding Button.Label}" Style="{StaticResource Muted}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <!-- Properties -->
+            <Border Grid.Column="2" Style="{StaticResource Card}" Margin="16,0,0,0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
                         <TextBlock Text="Button" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,14"/>

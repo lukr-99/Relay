@@ -51,6 +51,10 @@ public sealed class OsProvider : IProvider
                 }
                 break;
 
+            case "newtextfile":
+                NewTextFile(p);
+                break;
+
             case "open":
                 // A `special` token resolves to a known folder (portable across PCs); a `urls` array
                 // opens every entry (multi-URL button); otherwise open the single `url`.
@@ -80,6 +84,44 @@ public sealed class OsProvider : IProvider
     /// <summary>Opens a URL, file, or folder via the shell (the default app / browser).</summary>
     private static void Open(string target)
         => Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+
+    private static void NewTextFile(JsonElement p)
+    {
+        var dir = GetString(p, "dir");
+        if (string.IsNullOrWhiteSpace(dir)) return;
+
+        Directory.CreateDirectory(dir);
+        var prefix = GetString(p, "prefix");
+        if (string.IsNullOrWhiteSpace(prefix)) prefix = "note";
+
+        var file = UniqueTextFile(dir, prefix);
+        File.WriteAllText(file, "");
+        Process.Start(new ProcessStartInfo("notepad.exe")
+        {
+            Arguments = QuoteArg(file),
+            WorkingDirectory = dir,
+            UseShellExecute = true,
+        });
+    }
+
+    private static string UniqueTextFile(string dir, string prefix)
+    {
+        var safePrefix = SafeFilePrefix(prefix);
+        var stamp = DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss");
+        var file = Path.Combine(dir, $"{safePrefix}-{stamp}.txt");
+        for (var n = 2; File.Exists(file); n++)
+            file = Path.Combine(dir, $"{safePrefix}-{stamp}-{n}.txt");
+        return file;
+    }
+
+    private static string SafeFilePrefix(string value)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var safe = new string(value.Trim().Where(c => !invalid.Contains(c)).ToArray());
+        return string.IsNullOrWhiteSpace(safe) ? "note" : safe;
+    }
+
+    private static string QuoteArg(string value) => "\"" + value.Replace("\"", "\\\"") + "\"";
 
     /// <summary>Captures all monitors to a PNG in Pictures\Screenshots and copies it to the clipboard —
     /// an actual capture, unlike the Win+Shift+S overlay which only opens the snip tool.</summary>

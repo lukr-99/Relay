@@ -12,8 +12,11 @@ namespace Relay.Agent.Views;
 
 public partial class DeckEditorView : UserControl
 {
+    private const string ButtonDragFormat = "Relay.ButtonId";
+    private const string LibraryDragFormat = "Relay.LibraryButtonId";
+
     private static readonly string[] Types =
-        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Open URLs", "Open folder", "Run command", "Hold key (PTT)", "Toggle", "Screenshot", "Open screenshots", "MicForge" };
+        { "Hotkey", "Media key", "Type text", "Chat macro", "Launch app", "Open URL", "Open URLs", "Open folder", "New text file", "Run command", "Hold key (PTT)", "Toggle", "Screenshot", "Open screenshots", "MicForge" };
 
     // Press animations the phone can play; "None" maps to no effect.
     private static readonly string[] Effects =
@@ -38,6 +41,7 @@ public partial class DeckEditorView : UserControl
     private bool _loading;
     private bool _loadingPresets;
     private Point _dragStart;
+    private Point _libraryDragStart;
 
     public DeckEditorView(AppServices svc)
     {
@@ -68,6 +72,7 @@ public partial class DeckEditorView : UserControl
         PopulatePresets(_svc.Layout.ActivePreset);
         _loadedPreset = _svc.Layout.ActivePreset;
         RebuildGrid();
+        PopulateLibrary();
         PopulateSliders();
         Select(null);
     }
@@ -181,7 +186,11 @@ public partial class DeckEditorView : UserControl
             Height = 104,
         };
         cell.Drop += Cell_Drop;
-        cell.DragOver += (_, e) => { e.Effects = DragDropEffects.Move; e.Handled = true; };
+        cell.DragOver += (_, e) =>
+        {
+            e.Effects = e.Data.GetDataPresent(LibraryDragFormat) ? DragDropEffects.Copy : DragDropEffects.Move;
+            e.Handled = true;
+        };
 
         if (b is null)
         {
@@ -230,7 +239,9 @@ public partial class DeckEditorView : UserControl
                 var diff = _dragStart - e.GetPosition(null);
                 if (Math.Abs(diff.X) < SystemParameters.MinimumHorizontalDragDistance &&
                     Math.Abs(diff.Y) < SystemParameters.MinimumVerticalDragDistance) return;
-                DragDrop.DoDragDrop((DependencyObject)s, id, DragDropEffects.Move);
+                var data = new DataObject();
+                data.SetData(ButtonDragFormat, id);
+                DragDrop.DoDragDrop((DependencyObject)s, data, DragDropEffects.Move);
             };
         }
         return cell;
@@ -239,7 +250,14 @@ public partial class DeckEditorView : UserControl
     private void Cell_Drop(object sender, DragEventArgs e)
     {
         if (sender is not Border cell || cell.Tag is not ValueTuple<int, int> pos) return;
-        var srcId = e.Data.GetData(DataFormats.StringFormat) as string;
+
+        if (e.Data.GetData(LibraryDragFormat) is string libraryId)
+        {
+            DropLibraryButton(libraryId, pos);
+            return;
+        }
+
+        var srcId = e.Data.GetData(ButtonDragFormat) as string;
         var src = _page.Buttons.FirstOrDefault(b => b.Id == srcId);
         if (src is null) return;
 
@@ -255,6 +273,29 @@ public partial class DeckEditorView : UserControl
         }
         RebuildGrid();
         Select(src.Id);
+    }
+
+    private void DropLibraryButton(string libraryId, (int Row, int Col) pos)
+    {
+        var entry = _svc.ButtonLibrary.Find(libraryId);
+        if (entry is null) return;
+
+        int cols = ColsBox.SelectedItem is int c ? c : 4;
+        int rows = RowsBox.SelectedItem is int r ? r : 3;
+        var target = ButtonAt(pos.Row, pos.Col) is null ? pos : FirstFree(cols, rows);
+        if (target is not { } cell)
+        {
+            Hint.Text = "The grid is full. Add rows or columns first.";
+            return;
+        }
+
+        var clone = ButtonLibraryStore.Clone(entry.Button);
+        clone.Id = "b-" + Guid.NewGuid().ToString("n")[..6];
+        clone.Row = cell.Item1;
+        clone.Col = cell.Item2;
+        _page.Buttons.Add(clone);
+        RebuildGrid();
+        Select(clone.Id);
     }
 
     // ── selection + properties ───────────────────────────────────────────────────────────
@@ -300,6 +341,7 @@ public partial class DeckEditorView : UserControl
             case "Open URL": AddText("url", "URL"); break;
             case "Open URLs": AddMultiText("urls", "URLs (one per line)"); break;
             case "Open folder": AddFolderPicker("folder", "Folder to open"); break;
+            case "New text file": AddFolderPicker("dir", "Folder"); AddText("prefix", "File prefix"); break;
             case "Screenshot": AddInfo("Captures all screens to Pictures\\Screenshots and copies it to the clipboard."); break;
             case "Open screenshots": AddInfo("Opens your Pictures\\Screenshots folder in Explorer."); break;
             case "Run command": AddText("command", "Command (cmd)"); AddText("args", "Arguments (optional)"); break;
@@ -412,6 +454,7 @@ public partial class DeckEditorView : UserControl
             case "Open URL": SetVal("url", Str(p, "url")); break;
             case "Open URLs": SetVal("urls", UrlsText(p)); break;
             case "Open folder": SetVal("folder", Str(p, "url")); break;
+            case "New text file": SetVal("dir", Str(p, "dir")); SetVal("prefix", Str(p, "prefix")); break;
             case "Screenshot": break;
             case "Open screenshots": break;
             case "Run command": SetVal("command", Str(p, "command")); SetVal("args", Str(p, "args")); break;
@@ -503,6 +546,58 @@ public partial class DeckEditorView : UserControl
         RebuildGrid();
     }
 
+    // ── button library ───────────────────────────────────────────────────────────────────
+    private void PopulateLibrary()
+    {
+        LibraryList.Items.Clear();
+        foreach (var entry in _svc.ButtonLibrary.Entries) LibraryList.Items.Add(entry);
+    }
+
+    private void SaveButtonToLibrary_Click(object sender, RoutedEventArgs e)
+    {
+        ApplySelected();
+        var b = _selectedId is null ? null : _page.Buttons.FirstOrDefault(x => x.Id == _selectedId);
+        if (b is null)
+        {
+            Hint.Text = "Select a button first.";
+            return;
+        }
+
+        var name = PromptText("Save button as", b.Label);
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var entry = _svc.ButtonLibrary.Add(name.Trim(), b);
+        PopulateLibrary();
+        LibraryList.SelectedItem = _svc.ButtonLibrary.Find(entry.Id);
+        Hint.Text = $"Saved \"{entry.Name}\" to the button library.";
+    }
+
+    private void DeleteLibraryButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (LibraryList.SelectedItem is not ButtonLibraryEntry entry) return;
+        _svc.ButtonLibrary.Delete(entry.Id);
+        PopulateLibrary();
+        Hint.Text = $"Deleted \"{entry.Name}\" from the button library.";
+    }
+
+    private void Library_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _libraryDragStart = e.GetPosition(null);
+    }
+
+    private void Library_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed) return;
+        if (LibraryList.SelectedItem is not ButtonLibraryEntry entry) return;
+        var diff = _libraryDragStart - e.GetPosition(null);
+        if (Math.Abs(diff.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(diff.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+
+        var data = new DataObject();
+        data.SetData(LibraryDragFormat, entry.Id);
+        DragDrop.DoDragDrop(LibraryList, data, DragDropEffects.Copy);
+    }
+
     // ── icon picker (catalog name, resolved-from-URL image, or uploaded image) ─────────────
     private void Icon_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -587,6 +682,7 @@ public partial class DeckEditorView : UserControl
             case "Open URL": verb = "open"; payload = new { url = Val("url") }; break;
             case "Open URLs": verb = "open"; payload = new { urls = SplitLines(Val("urls")) }; break;
             case "Open folder": verb = "open"; payload = new { url = Val("folder"), folder = true }; break;
+            case "New text file": verb = "newtextfile"; payload = new { dir = Val("dir"), prefix = Val("prefix") }; break;
             case "Screenshot": verb = "screenshot"; payload = new { }; break;
             case "Open screenshots": verb = "open"; payload = new { special = "screenshots" }; break;
             case "Run command": provider = "script"; verb = "run"; payload = new { command = Val("command"), args = Val("args") }; break;
@@ -928,6 +1024,7 @@ public partial class DeckEditorView : UserControl
         if (string.Equals(a.Provider, "micforge", StringComparison.OrdinalIgnoreCase)) return "MicForge";
         if (string.Equals(a.Provider, "script", StringComparison.OrdinalIgnoreCase)) return "Run command";
         if (string.Equals(a.Verb, "screenshot", StringComparison.OrdinalIgnoreCase)) return "Screenshot";
+        if (string.Equals(a.Verb, "newtextfile", StringComparison.OrdinalIgnoreCase)) return "New text file";
         if (string.Equals(a.Verb, "open", StringComparison.OrdinalIgnoreCase))
         {
             if (a.Params.ValueKind == JsonValueKind.Object && a.Params.TryGetProperty("special", out var sp)
