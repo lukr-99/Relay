@@ -1,83 +1,70 @@
 <UserControl x:Class="Relay.Agent.Views.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="28,24,28,24" MaxWidth="720" HorizontalAlignment="Left">
-            <TextBlock Text="Settings" Style="{StaticResource H1}" Margin="0,0,0,20"/>
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+             xmlns:tray="https://github.com/lukr-99/dotnetlib/tray">
+    <!-- The settings page from the dotnetlib kit, in CodePrint's "Settings pages" shape: one scrolling
+         page, one card per section, no Save button. Every change saves at once. -->
+    <tray:SettingsPage x:Name="Page" Title="Settings">
 
-            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="Agent" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                    <TextBlock x:Name="NameLine" Margin="0,3" FontSize="14"/>
-                    <TextBlock x:Name="PortLine" Margin="0,3" FontSize="14"/>
-                    <TextBlock Text="Changing the port needs a restart." Style="{StaticResource Muted}" Margin="0,6,0,0"/>
-                </StackPanel>
-            </Border>
+        <tray:SettingsSection SectionId="general" Title="General" Description="How Relay looks.">
+            <tray:SegmentedRow x:Name="ThemeRow" Label="Theme" Hint="System follows the Windows setting."
+                               SelectionChanged="Theme_Changed">
+                <tray:SegmentedRow.Options>
+                    <x:Array Type="sys:String">
+                        <sys:String>System</sys:String>
+                        <sys:String>Light</sys:String>
+                        <sys:String>Dark</sys:String>
+                    </x:Array>
+                </tray:SegmentedRow.Options>
+            </tray:SegmentedRow>
+        </tray:SettingsSection>
 
-            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="Presets" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <TextBlock Text="Add ready-made decks for MicForge controls or coding shortcuts. Manage presets in the Presets tab."
-                               Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="＋ MicForge preset" Click="AddMicForge_Click"/>
-                        <Button Content="＋ Coding preset" Click="AddCoding_Click" Margin="8,0,0,0"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
+        <tray:SettingsSection SectionId="agent" Title="Agent" Description="How phones find and reach this PC.">
+            <tray:InfoRow x:Name="NameRow" Label="Device name" Hint="Phones see this name when they search the network." />
+            <tray:InfoRow x:Name="AddressRow" Label="Address" Hint="The pairing QR on the Devices tab carries it." IsMonospace="True" />
+            <tray:SettingsDangerZone>
+                <tray:DangerRow x:Name="RegenRow" Label="Regenerate the pairing token"
+                                Hint="Unpairs every phone. You pair them again after a restart."
+                                ButtonText="Regenerate..." Click="Regen_Click"
+                                ConfirmTitle="Regenerate the pairing token?" ConfirmText="Regenerate" CancelText="Cancel"
+                                ConfirmMessage="Every paired phone stops working until you restart Relay and pair it again." />
+            </tray:SettingsDangerZone>
+        </tray:SettingsSection>
 
-            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="Files" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                        <Button Content="Open data folder" Click="OpenData_Click" Margin="0,0,10,0"/>
-                        <Button Content="Open log file" Click="OpenLog_Click"/>
-                    </StackPanel>
-                    <TextBlock Text="Back up or share your deck." Style="{StaticResource Muted}" Margin="0,0,0,8"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="Export deck…" Click="Export_Click" Margin="0,0,10,0"/>
-                        <Button Content="Import deck…" Click="Import_Click"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
+        <tray:SettingsSection SectionId="presets" Title="Presets" Description="Ready-made decks. Manage them in the Presets tab.">
+            <tray:ButtonRow x:Name="MicForgeRow" Label="MicForge preset" Hint="Buttons and sliders for MicForge."
+                            ButtonText="Add" Click="AddMicForge_Click" />
+            <tray:ButtonRow x:Name="CodingRow" Label="Coding preset" Hint="Shortcuts for coding."
+                            ButtonText="Add" Click="AddCoding_Click" />
+        </tray:SettingsSection>
 
-            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="Automation" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <TextBlock Text="Run-command buttons let a deck button run a shell command on this PC. Off by default."
-                               Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                    <Button x:Name="ScriptToggle" Click="ScriptToggle_Click" HorizontalAlignment="Left"/>
-                </StackPanel>
-            </Border>
+        <tray:SettingsSection SectionId="automation" Title="Automation" Description="What deck buttons may do on this PC.">
+            <tray:ToggleRow x:Name="ScriptRow" Label="Run-command buttons"
+                            Hint="Lets a deck button run a shell command on this PC. Off by default."
+                            Toggled="Script_Toggled" />
+        </tray:SettingsSection>
 
-            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="Pairing security" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <TextBlock Text="Regenerate the token to unpair every phone. You'll re-pair after a restart."
-                               Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                    <Button Content="Regenerate token" Style="{StaticResource DangerButton}" Click="Regen_Click" HorizontalAlignment="Left"/>
-                </StackPanel>
-            </Border>
+        <tray:SettingsSection SectionId="data" Title="Your data" Description="Back up or share your deck, and find Relay's files.">
+            <tray:ButtonRow x:Name="ExportRow" Label="Export the deck" Hint="Saves the current preset to a file."
+                            ButtonText="Export..." Click="Export_Click" />
+            <tray:ButtonRow x:Name="ImportRow" Label="Import a deck" Hint="Replaces the current preset and sends it to your phones."
+                            ButtonText="Import..." Click="Import_Click" />
+            <tray:LinkRow Label="Open the data folder" IsExternal="True" Click="OpenData_Click" />
+            <tray:LinkRow Label="Open the log file" IsExternal="True" Click="OpenLog_Click" />
+        </tray:SettingsSection>
 
-            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="Updates" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <TextBlock x:Name="UpdateLine" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Button x:Name="CheckUpdateBtn" Content="Check for updates" Click="CheckUpdate_Click"/>
-                        <Button x:Name="InstallUpdateBtn" Content="Download &amp; install" Style="{StaticResource AccentButton}"
-                                Margin="10,0,0,0" Visibility="Collapsed" Click="InstallUpdate_Click"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
+        <tray:SettingsSection SectionId="updates" Title="Updates" Description="New versions of the Relay agent.">
+            <tray:InfoRow x:Name="VersionRow" Label="Version" />
+            <tray:ButtonRow x:Name="CheckRow" Label="Check for updates" Hint="Looks for a newer release on GitHub."
+                            ButtonText="Check now" BusyText="Checking..." Click="CheckUpdate_Click" />
+            <tray:ButtonRow x:Name="InstallRow" Label="Install the update" Visibility="Collapsed" IsPrimary="True"
+                            ButtonText="Install" BusyText="Downloading..." Click="InstallUpdate_Click" />
+            <tray:LinkRow Label="Release notes" IsExternal="True" Click="Releases_Click" />
+        </tray:SettingsSection>
 
-            <Border Style="{StaticResource Card}">
-                <StackPanel>
-                    <TextBlock Text="About" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <TextBlock x:Name="AboutLine" FontSize="14" Margin="0,0,0,10"/>
-                    <Button Content="Open the repository" Click="Repo_Click" HorizontalAlignment="Left"/>
-                </StackPanel>
-            </Border>
-        </StackPanel>
-    </ScrollViewer>
+        <tray:SettingsSection SectionId="about" Title="About" Description="An Android phone as a Stream Deck for Windows.">
+            <tray:LinkRow Label="Open the repository" IsExternal="True" Click="Repo_Click" />
+        </tray:SettingsSection>
+    </tray:SettingsPage>
 </UserControl>

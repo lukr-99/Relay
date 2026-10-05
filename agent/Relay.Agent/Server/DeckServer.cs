@@ -52,6 +52,11 @@ public sealed class DeckServer : IDisposable
         _log.Info($"pushed updated layout to {_sessions.Count} phone(s).");
     }
 
+    private Task? _run;
+
+    /// <summary>True when the server could not start or stopped with an error (for example, the port is taken).</summary>
+    public bool IsFaulted => _run?.IsFaulted == true;
+
     public void Start()
     {
         var builder = WebApplication.CreateBuilder();
@@ -65,7 +70,9 @@ public sealed class DeckServer : IDisposable
         app.MapGet("/", () => Results.Text("Relay agent — connect a phone to /rpc", "text/plain"));
 
         _app = app;
-        _ = app.RunAsync();
+        _run = app.RunAsync();
+        _ = _run.ContinueWith(t => _log.Error("WebSocket server stopped with an error.", t.Exception!),
+            TaskContinuationOptions.OnlyOnFaulted);
         _log.Info($"WebSocket server listening on wss://0.0.0.0:{_config.Port}/rpc");
     }
 

@@ -6,14 +6,12 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using DotNetLib.Tray;
 
 namespace Relay.Agent.Views;
 
 public partial class DevicesView : UserControl
 {
-    private static readonly Brush Green = new SolidColorBrush(Color.FromRgb(0x27, 0xAE, 0x60));
-    private static readonly Brush Red = new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B));
-
     private readonly AppServices _svc;
     private readonly string _uri;
     private readonly HashSet<string> _known = new();
@@ -55,11 +53,9 @@ public partial class DevicesView : UserControl
     private static StackPanel DeviceRow(string name, bool connected)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 5, 0, 5) };
-        row.Children.Add(new Ellipse
-        {
-            Width = 11, Height = 11, VerticalAlignment = VerticalAlignment.Center,
-            Fill = connected ? Green : Red,
-        });
+        var dot = new Ellipse { Width = 11, Height = 11, VerticalAlignment = VerticalAlignment.Center };
+        dot.SetResourceReference(Shape.FillProperty, connected ? TrayThemeTokens.Success : TrayThemeTokens.Danger);
+        row.Children.Add(dot);
         row.Children.Add(new TextBlock
         {
             Text = name, Margin = new Thickness(10, 0, 0, 0), FontSize = 14,

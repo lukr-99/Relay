@@ -25,18 +25,25 @@ edited on the PC and pushed to the phone live.
   - **Deck editor** — a WYSIWYG grid mirroring the phone, drag-and-drop to move/swap buttons, a
     properties panel (Label / Action / Appearance), and **Save & Push** (live).
   - **Devices** — pairing QR + host/port/token + a connected-phones list (green/red status dots).
-  - **Settings** — files, regenerate token, about.
+  - **Settings**: the dotnetlib settings kit page (theme, agent, presets, automation, your data,
+    updates, about), following CodePrint's "Settings pages" rule.
 - **Icon** drawn at runtime (`IconFactory`) for the tray + window; a matching `Relay.ico` is the
-  exe/taskbar icon.
+  exe/taskbar icon. The tray icon color shows the status: violet with a phone connected, grey while
+  waiting, red when the server could not start.
+- **Theme**: System, Light or Dark, from Settings or the tray menu. System follows Windows live.
 
 Deferred: WSS + cert-fingerprint pinning (currently `ws://`), real mDNS advertising (stubbed —
 pair via the Devices QR / manual host:port), OBS + MicForge providers, live `button.state` feedback.
 
 ## Stack
 
-- **.NET 10**, `net10.0-windows`, **WPF** UI + **WinForms** only for the tray `NotifyIcon`
-  (MicForge pattern). The WinForms/`System.Drawing` global usings are removed in the csproj so WPF
-  types win; the tray file imports them explicitly.
+- **.NET 10**, `net10.0-windows`, **WPF** UI. The tray icon, menu, theme, dialogs, single-instance
+  lock and settings page come from **`DotNetLib.Tray`** (H.NotifyIcon + WPF UI inside), and the
+  updater from **`DotNetLib.Core`**, both from dotnetlib's private GitHub Packages feed (see
+  `nuget.config`). Restore needs a `read:packages` token stored once in the user NuGet config under
+  the source name `dotnetlib` (CodePrint, "Getting dotnetlib packages").
+- **WinForms** only for screen capture and the color and folder pickers. Its global usings are
+  removed in the csproj so WPF types win.
 - **Kestrel** (`Microsoft.AspNetCore.App` framework reference) for the WebSocket host.
 - **QRCoder** for the pairing QR. JSON via `System.Text.Json`.
 
@@ -49,15 +56,17 @@ agent/
   Relay.Agent/
     App.xaml(.cs)                 startup — wires server + providers + tray, shows MainWindow
     AppServices.cs                composition root shared with the views
-    MainWindow.xaml(.cs)          nav-rail shell (Deck / Devices / Settings), dark title bar, tray
-    IconFactory.cs                runtime-drawn Relay icon (tray + window)
-    TrayIcon.cs                   NotifyIcon + Open / Quit
+    MainWindow.xaml(.cs)          nav-rail shell (Deck / Devices / Settings)
+    AgentTray.cs                  DotNetLib.Tray icon + menu, rebuilt from the status
+    AppPrompts.cs                 the kit's message, confirm and text dialogs in the theme
+    IconFactory.cs                runtime-drawn Relay icon (tray, one color per status, + window)
+    Theming/                      Relay's light/dark palettes and the theme applier wrapper
     Relay.ico                     exe / taskbar icon
-    Themes/Dark.xaml              hand-rolled dark theme + control styles
+    Themes/Agent.xaml             the agent's control styles, colored by the theme tokens
     Views/
       DeckEditorView.xaml(.cs)    visual drag-drop deck editor + properties + Save & Push
       DevicesView.xaml(.cs)       pairing QR + connected phones (status dots)
-      SettingsView.xaml(.cs)      files, regenerate token, about
+      SettingsView.xaml(.cs)      settings kit page
     AppConfig.cs                  %AppData%\Relay paths, persisted agent id + token + port
     Log.cs
     Layout/                       DeckLayout / Page / ButtonDef / ActionDef, LayoutStore, IconCatalog

@@ -1,7 +1,5 @@
 using System.ComponentModel;
-using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Threading;
 using Relay.Agent.Views;
 
@@ -21,6 +19,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _svc = svc;
+        svc.Theme.Track(this);
 
         Icon = IconFactory.CreateImageSource(64);
         Brand.Source = IconFactory.CreateImageSource(48);
@@ -45,24 +44,14 @@ public partial class MainWindow : Window
         StatusText.Text = $"{conn}\n{Pairing.Pairing.LocalIpv4()}:{_svc.Config.Port}";
     }
 
+    /// <summary>Opens the Settings tab (from the tray menu).</summary>
+    public void ShowSettings() => NavSettings.IsChecked = true;
+
     private void NavDeck_Checked(object sender, RoutedEventArgs e) { if (Host != null) { Host.Content = _deck; _deck.SyncActivePreset(); } }
     private void NavPresets_Checked(object sender, RoutedEventArgs e) { if (Host != null) { Host.Content = _presets; _presets.Refresh(); } }
     private void NavDevices_Checked(object sender, RoutedEventArgs e) { if (Host != null) { Host.Content = _devices; _devices.Refresh(); } }
     private void NavProfiles_Checked(object sender, RoutedEventArgs e) { if (Host != null) { Host.Content = _profiles; _profiles.Refresh(); } }
     private void NavSettings_Checked(object sender, RoutedEventArgs e) { if (Host != null) Host.Content = _settings; }
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
-
-    protected override void OnSourceInitialized(EventArgs e)
-    {
-        base.OnSourceInitialized(e);
-        // Dark title bar / border (Windows 10 20H1+ = attribute 20; older builds = 19).
-        var hwnd = new WindowInteropHelper(this).Handle;
-        int on = 1;
-        if (DwmSetWindowAttribute(hwnd, 20, ref on, sizeof(int)) != 0)
-            DwmSetWindowAttribute(hwnd, 19, ref on, sizeof(int));
-    }
 
     protected override void OnClosing(CancelEventArgs e)
     {

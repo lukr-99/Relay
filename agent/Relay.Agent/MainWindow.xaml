@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Relay" Width="1020" Height="700" MinWidth="860" MinHeight="580"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource Bg}"
-        TextElement.Foreground="{StaticResource Text}"
+        Background="{DynamicResource Tray.BackgroundBrush}"
+        TextElement.Foreground="{DynamicResource Tray.TextPrimaryBrush}"
         TextOptions.TextFormattingMode="Ideal"
         FontFamily="Segoe UI" FontSize="13">
     <Grid>
@@ -14,7 +14,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- Nav rail -->
-        <Border Grid.Column="0" Background="{StaticResource Surface}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,1,0">
+        <Border Grid.Column="0" Background="{DynamicResource Tray.SurfaceBrush}" BorderBrush="{DynamicResource Tray.BorderBrush}" BorderThickness="0,0,1,0">
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="18,20,16,22">
                     <Image x:Name="Brand" Width="28" Height="28"/>
