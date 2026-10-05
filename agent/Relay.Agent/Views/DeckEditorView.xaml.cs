@@ -55,6 +55,9 @@ public partial class DeckEditorView : UserControl
         foreach (var ef in Effects) EffectBox.Items.Add(ef);
 
         LoadFromStore();
+
+        // The cells take their colors when drawn, so a theme switch draws them again.
+        svc.Theme.Applied += (_, _) => RebuildGrid();
     }
 
     private void LoadFromStore()
