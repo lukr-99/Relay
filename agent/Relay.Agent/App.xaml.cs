@@ -108,6 +108,7 @@ public partial class App : Application
     private void QuitApp()
     {
         IsQuitting = true;
+        try { _main?.SavePlacement(); } catch { }
         _tray?.Dispose();                        // remove the tray icon immediately
         try { _svc?.Mdns.Dispose(); } catch { }
         try { _svc?.Profiles.Dispose(); } catch { }
