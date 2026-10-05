@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Windows;
+using DotNetLib.Tray;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -145,16 +146,15 @@ public partial class DeckEditorView : UserControl
 
     private void DeletePage_Click(object sender, RoutedEventArgs e)
     {
-        if (_work.Pages.Count <= 1) { MessageBox.Show("A deck needs at least one page.", "Relay"); return; }
-        if (MessageBox.Show($"Delete page \"{_page.Name}\" and its buttons?", "Relay",
-                MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
+        if (_work.Pages.Count <= 1) { _svc.Prompts.Inform("A deck needs at least one page."); return; }
+        if (!_svc.Prompts.ConfirmDanger($"Delete page \"{_page.Name}\"?", "The page and its buttons go.", "Delete", Window.GetWindow(this))) return;
         _work.Pages.Remove(_page);
         _page = _work.Pages[0];
         _loading = true; PopulatePages(0); _loading = false;
         Select(null);
     }
 
-    private string? PromptText(string title, string initial) => Prompt.Text(this, title, initial);
+    private string? PromptText(string title, string initial) => _svc.Prompts.AskLine("Relay", title, initial);
 
     private static int Clamp(int v) => Math.Clamp(v, 1, 8);
 
@@ -195,16 +195,16 @@ public partial class DeckEditorView : UserControl
         if (b is null)
         {
             cell.Background = Brushes.Transparent;
-            cell.BorderBrush = (Brush)FindResource("Border");
+            cell.BorderBrush = (Brush)FindResource(TrayThemeTokens.Border);
             cell.BorderThickness = new Thickness(1);
         }
         else
         {
-            var bg = ParseColor(b.Color, ((SolidColorBrush)FindResource("Surface2")).Color);
+            var bg = ParseColor(b.Color, ((SolidColorBrush)FindResource(TrayThemeTokens.SurfaceRaised)).Color);
             var fg = Luminance(bg) > 0.5 ? Color.FromRgb(0x10, 0x14, 0x1A) : Colors.White;
             cell.Background = new SolidColorBrush(bg);
             cell.BorderThickness = new Thickness(_selectedId == b.Id ? 2.5 : 0);
-            cell.BorderBrush = (Brush)FindResource("Accent");
+            cell.BorderBrush = (Brush)FindResource(TrayThemeTokens.Primary);
 
             var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             var iconImg = IconResolver.Decode(b.Icon);
@@ -616,7 +616,7 @@ public partial class DeckEditorView : UserControl
             UpdateIconPreview();
             RebuildGrid();
         }
-        catch (Exception ex) { MessageBox.Show("Couldn't fetch an icon: " + ex.Message, "Relay"); }
+        catch (Exception ex) { _svc.Prompts.Inform("Couldn't fetch an icon: " + ex.Message); }
     }
 
     private void IconUpload_Click(object sender, RoutedEventArgs e)
@@ -634,7 +634,7 @@ public partial class DeckEditorView : UserControl
             UpdateIconPreview();
             RebuildGrid();
         }
-        catch (Exception ex) { MessageBox.Show("Couldn't load that image: " + ex.Message, "Relay"); }
+        catch (Exception ex) { _svc.Prompts.Inform("Couldn't load that image: " + ex.Message); }
     }
 
     private void IconClear_Click(object sender, RoutedEventArgs e)
@@ -665,7 +665,7 @@ public partial class DeckEditorView : UserControl
                 Text = Glyph(_icon),
                 FontFamily = new FontFamily("Segoe MDL2 Assets"),
                 FontSize = 20,
-                Foreground = (Brush)FindResource("Text"),
+                Foreground = (Brush)FindResource(TrayThemeTokens.TextPrimary),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             };
@@ -749,7 +749,7 @@ public partial class DeckEditorView : UserControl
                 Select(b.Id);
                 return;
             }
-        MessageBox.Show("The grid is full — add rows/cols first.", "Relay");
+        _svc.Prompts.Inform("The grid is full. Add rows or columns first.");
     }
 
     private void Delete_Click(object sender, RoutedEventArgs e)
@@ -767,7 +767,7 @@ public partial class DeckEditorView : UserControl
         int cols = ColsBox.SelectedItem is int c ? c : 4;
         int rows = RowsBox.SelectedItem is int r ? r : 3;
         var free = FirstFree(cols, rows);
-        if (free is not { } cell) { MessageBox.Show("The grid is full — add rows/cols first.", "Relay"); return; }
+        if (free is not { } cell) { _svc.Prompts.Inform("The grid is full. Add rows or columns first."); return; }
 
         var clone = JsonSerializer.Deserialize<ButtonDef>(
             JsonSerializer.Serialize(src, LayoutStore.Json), LayoutStore.Json)!;

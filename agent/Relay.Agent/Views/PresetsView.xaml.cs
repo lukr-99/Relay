@@ -39,15 +39,15 @@ public partial class PresetsView : UserControl
 
     private void New_Click(object sender, RoutedEventArgs e)
     {
-        var name = Prompt.Text(this, "New preset", "")?.Trim();
+        var name = _svc.Prompts.AskLine("New preset", "Name", "")?.Trim();
         if (string.IsNullOrWhiteSpace(name)) return;
-        if (_svc.Layout.Exists(name)) { MessageBox.Show("A preset with that name already exists.", "Relay"); return; }
+        if (_svc.Layout.Exists(name)) { _svc.Prompts.Inform("A preset with that name already exists."); return; }
         var blank = new DeckLayout
         {
             Grid = new Relay.Agent.Layout.Grid { Cols = 4, Rows = 3 }, ActivePage = "p-main",
             Pages = { new Relay.Agent.Layout.Page { Id = "p-main", Name = "Main" } },
         };
-        if (!_svc.Layout.Create(name, blank)) { MessageBox.Show("Couldn't create that preset.", "Relay"); return; }
+        if (!_svc.Layout.Create(name, blank)) { _svc.Prompts.Inform("Couldn't create that preset."); return; }
         _svc.Layout.SetActive(name);
         Refresh();
         Hint.Text = $"Created “{name}”.";
@@ -56,10 +56,10 @@ public partial class PresetsView : UserControl
     private void Duplicate_Click(object sender, RoutedEventArgs e)
     {
         var from = _svc.Layout.ActivePreset;
-        var name = Prompt.Text(this, "Duplicate preset as", from + " copy")?.Trim();
+        var name = _svc.Prompts.AskLine("Duplicate preset", "New name", from + " copy")?.Trim();
         if (string.IsNullOrWhiteSpace(name)) return;
-        if (_svc.Layout.Exists(name)) { MessageBox.Show("A preset with that name already exists.", "Relay"); return; }
-        if (!_svc.Layout.Duplicate(from, name)) { MessageBox.Show("Couldn't duplicate the preset.", "Relay"); return; }
+        if (_svc.Layout.Exists(name)) { _svc.Prompts.Inform("A preset with that name already exists."); return; }
+        if (!_svc.Layout.Duplicate(from, name)) { _svc.Prompts.Inform("Couldn't duplicate the preset."); return; }
         _svc.Layout.SetActive(name);
         Refresh();
         Hint.Text = $"Duplicated to “{name}”.";
@@ -68,10 +68,10 @@ public partial class PresetsView : UserControl
     private void Rename_Click(object sender, RoutedEventArgs e)
     {
         var current = _svc.Layout.ActivePreset;
-        var name = Prompt.Text(this, "Rename preset", current)?.Trim();
+        var name = _svc.Prompts.AskLine("Rename preset", "New name", current)?.Trim();
         if (string.IsNullOrWhiteSpace(name) || name == current) return;
-        if (_svc.Layout.Exists(name)) { MessageBox.Show("A preset with that name already exists.", "Relay"); return; }
-        if (!_svc.Layout.Rename(current, name)) { MessageBox.Show("Couldn't rename the preset.", "Relay"); return; }
+        if (_svc.Layout.Exists(name)) { _svc.Prompts.Inform("A preset with that name already exists."); return; }
+        if (!_svc.Layout.Rename(current, name)) { _svc.Prompts.Inform("Couldn't rename the preset."); return; }
         Refresh();
         Hint.Text = $"Renamed to “{name}”.";
     }
@@ -79,9 +79,8 @@ public partial class PresetsView : UserControl
     private void Delete_Click(object sender, RoutedEventArgs e)
     {
         var name = _svc.Layout.ActivePreset;
-        if (_svc.Layout.Presets.Count <= 1) { MessageBox.Show("You need at least one preset.", "Relay"); return; }
-        if (MessageBox.Show($"Delete preset “{name}”?", "Relay",
-                MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
+        if (_svc.Layout.Presets.Count <= 1) { _svc.Prompts.Inform("You need at least one preset."); return; }
+        if (!_svc.Prompts.ConfirmDanger($"Delete preset “{name}”?", "Its pages and buttons go.", "Delete", Window.GetWindow(this))) return;
         _svc.Layout.Delete(name);   // another preset becomes active + is pushed
         Refresh();
         Hint.Text = $"Deleted “{name}”; now on “{_svc.Layout.ActivePreset}”.";

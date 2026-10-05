@@ -4,6 +4,8 @@ using Relay.Agent.Profiles;
 using Relay.Agent.Providers;
 using Relay.Agent.Server;
 using DotNetLib.Core.Updating;
+using DotNetLib.Tray;
+using Relay.Agent.Theming;
 
 namespace Relay.Agent;
 
@@ -23,4 +25,14 @@ public sealed class AppServices
     public required ProfileStore ProfileStore { get; init; }
     public required ProfileManager Profiles { get; init; }
     public required UpdateService Updater { get; init; }
+    public required AgentTheme Theme { get; init; }
+    public required AppPrompts Prompts { get; init; }
+
+    /// <summary>Switches the look and remembers it.</summary>
+    public void SetTheme(TrayThemeMode mode)
+    {
+        Config.Theme = mode;
+        Config.PersistState();
+        Theme.Apply(mode);
+    }
 }

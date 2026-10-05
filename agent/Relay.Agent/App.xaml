@@ -2,11 +2,9 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              ShutdownMode="OnExplicitShutdown">
-    <Application.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Themes/Dark.xaml"/>
-            </ResourceDictionary.MergedDictionaries>
-        </ResourceDictionary>
-    </Application.Resources>
+    <!--
+        Nothing is merged here on purpose. App.xaml.cs calls TrayResources.Merge (WPF UI's themes and
+        controls, then the kit's Themes/Tray.xaml), and then adds Themes/Agent.xaml last, so Relay's own
+        control styles win over WPF UI's. The colors are set at run time by Theming/AgentTheme.cs.
+    -->
 </Application>

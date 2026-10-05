@@ -1,5 +1,6 @@
 using System.IO;
 using System.Security.Cryptography;
+using DotNetLib.Tray;
 
 namespace Relay.Agent;
 
@@ -29,10 +30,13 @@ public sealed class AppConfig
     /// <summary>Whether the Script (run-command) provider is allowed to execute. Off by default.</summary>
     public bool ScriptEnabled { get; set; }
 
-    /// <summary>Persists the mutable state fields (token, port, script toggle) back to disk.</summary>
+    /// <summary>The look: System (follows Windows), Light or Dark.</summary>
+    public TrayThemeMode Theme { get; set; }
+
+    /// <summary>Persists the mutable state fields (token, port, script toggle, theme) back to disk.</summary>
     public void PersistState()
     {
-        var s = new AgentState { AgentId = AgentId, Token = Token, Port = Port, ScriptEnabled = ScriptEnabled };
+        var s = new AgentState { AgentId = AgentId, Token = Token, Port = Port, ScriptEnabled = ScriptEnabled, Theme = Theme.ToString() };
         try { File.WriteAllText(StatePath, System.Text.Json.JsonSerializer.Serialize(s)); } catch { }
     }
 
@@ -55,6 +59,7 @@ public sealed class AppConfig
             Token = state.Token,
             AgentId = state.AgentId,
             ScriptEnabled = state.ScriptEnabled,
+            Theme = Enum.TryParse<TrayThemeMode>(state.Theme, ignoreCase: true, out var theme) ? theme : TrayThemeMode.System,
         };
     }
 
@@ -74,6 +79,7 @@ public sealed class AgentState
     public string Token { get; set; } = AppConfig.NewToken();
     public int Port { get; set; } = 8731;
     public bool ScriptEnabled { get; set; }
+    public string? Theme { get; set; }
 
     public static AgentState LoadOrCreate(string path)
     {

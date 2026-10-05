@@ -1,73 +1,78 @@
-using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows;
-using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using DotNetLib.Tray;
+using Relay.Agent.Theming;
 
 namespace Relay.Agent;
 
-/// <summary>Draws the Relay icon at runtime — a deck of buttons on the accent colour.
-/// Used for the tray icon and the window icon (no .ico asset needed).</summary>
+/// <summary>What the tray icon shows by its color. The tooltip says the same in words.</summary>
+public enum AgentStatus
+{
+    /// <summary>At least one phone is connected: the brand violet.</summary>
+    Connected,
+
+    /// <summary>The server runs but no phone is connected: grey.</summary>
+    Waiting,
+
+    /// <summary>The server could not start: red.</summary>
+    Failed,
+}
+
+/// <summary>Draws the Relay icon at run time: a 2x2 deck of white tiles on a rounded square.
+/// Used for the tray icon (one color per status) and the window icon.</summary>
 internal static class IconFactory
 {
-    private static readonly Color Accent = Color.FromArgb(0x7C, 0x5C, 0xFF);
-    private static readonly Color Tile = Color.FromArgb(0xFF, 0xFF, 0xFF);
+    private static readonly Color Waiting = Color.FromRgb(0x6B, 0x72, 0x80);
+    private static readonly Color Failed = Color.FromRgb(0xC0, 0x39, 0x2B);
 
-    private static Bitmap Draw(int size)
+    private static readonly Dictionary<AgentStatus, byte[]> TrayIcons = [];
+
+    /// <summary>A multi-size .ico for the tray, in the status color. Made once per status.</summary>
+    public static byte[] TrayIcon(AgentStatus status)
     {
-        var bmp = new Bitmap(size, size);
-        using var g = Graphics.FromImage(bmp);
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.Clear(Color.Transparent);
-
-        float r = size * 0.22f;
-        using (var bg = new SolidBrush(Accent))
-        using (var path = Rounded(0.5f, 0.5f, size - 1f, size - 1f, r))
-            g.FillPath(bg, path);
-
-        // 2x2 grid of rounded button tiles
-        float pad = size * 0.20f;
-        float gap = size * 0.10f;
-        float cell = (size - pad * 2 - gap) / 2f;
-        float tr = cell * 0.28f;
-        using var tile = new SolidBrush(Tile);
-        for (int row = 0; row < 2; row++)
-        for (int col = 0; col < 2; col++)
+        if (!TrayIcons.TryGetValue(status, out var icon))
         {
-            float x = pad + col * (cell + gap);
-            float y = pad + row * (cell + gap);
-            using var p = Rounded(x, y, cell, cell, tr);
-            g.FillPath(tile, p);
+            var color = status switch
+            {
+                AgentStatus.Connected => RelayPalettes.Brand,
+                AgentStatus.Failed => Failed,
+                _ => Waiting,
+            };
+            icon = IconFile.Create(IconFile.TraySizes, size => IconFile.Render(size, (dc, px) => Draw(dc, px, color)));
+            TrayIcons[status] = icon;
         }
-        return bmp;
+
+        return icon;
     }
 
-    private static GraphicsPath Rounded(float x, float y, float w, float h, float r)
+    /// <summary>The brand icon as an image, for the window and the nav rail.</summary>
+    public static ImageSource CreateImageSource(int size = 64)
     {
-        var p = new GraphicsPath();
-        float d = r * 2;
-        p.AddArc(x, y, d, d, 180, 90);
-        p.AddArc(x + w - d, y, d, d, 270, 90);
-        p.AddArc(x + w - d, y + h - d, d, d, 0, 90);
-        p.AddArc(x, y + h - d, d, d, 90, 90);
-        p.CloseFigure();
-        return p;
+        var pixels = IconFile.Render(size, (dc, px) => Draw(dc, px, RelayPalettes.Brand));
+        var source = BitmapSource.Create(size, size, 96, 96, PixelFormats.Pbgra32, null, pixels, size * 4);
+        source.Freeze();
+        return source;
     }
 
-    public static Icon CreateTrayIcon(int size = 32)
+    private static void Draw(DrawingContext dc, int size, Color background)
     {
-        using var bmp = Draw(size);
-        var h = bmp.GetHicon();
-        return (Icon)Icon.FromHandle(h).Clone(); // clone so we can free the HICON
-    }
+        var bg = new SolidColorBrush(background);
+        bg.Freeze();
+        double r = size * 0.22;
+        dc.DrawRoundedRectangle(bg, null, new Rect(0, 0, size, size), r, r);
 
-    public static System.Windows.Media.ImageSource CreateImageSource(int size = 64)
-    {
-        using var bmp = Draw(size);
-        var src = Imaging.CreateBitmapSourceFromHBitmap(
-            bmp.GetHbitmap(Color.Transparent), IntPtr.Zero, Int32Rect.Empty,
-            BitmapSizeOptions.FromEmptyOptions());
-        src.Freeze();
-        return src;
+        double pad = size * 0.20;
+        double gap = size * 0.10;
+        double cell = (size - pad * 2 - gap) / 2;
+        double tr = cell * 0.28;
+        for (int row = 0; row < 2; row++)
+        {
+            for (int col = 0; col < 2; col++)
+            {
+                var tile = new Rect(pad + col * (cell + gap), pad + row * (cell + gap), cell, cell);
+                dc.DrawRoundedRectangle(Brushes.White, null, tile, tr, tr);
+            }
+        }
     }
 }

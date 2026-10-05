@@ -26,13 +26,15 @@
     <PackageReference Include="QRCoder" Version="1.6.0" />
     <!-- DNS-SD/mDNS responder so phones auto-discover the agent (_relay._tcp). -->
     <PackageReference Include="Makaretu.Dns.Multicast" Version="0.27.0" />
-    <!-- Shared self-update service (local feed; see nuget.config). -->
-    <PackageReference Include="DotNetLib.Core" Version="0.1.0" />
+    <!-- Self-update service and the tray kit (tray icon, menu, theme, dialogs, settings page),
+         from dotnetlib's GitHub Packages feed (see nuget.config). -->
+    <PackageReference Include="DotNetLib.Core" Version="0.4.0" />
+    <PackageReference Include="DotNetLib.Tray" Version="0.4.0" />
   </ItemGroup>
 
-  <!-- This is a WPF app that also uses WinForms only for the tray NotifyIcon. Drop the WinForms
-       global usings so System.Windows.* (WPF) types win; the two files that need WinForms/Drawing
-       import those namespaces explicitly. -->
+  <!-- This is a WPF app that also uses WinForms for screen capture and the color and folder pickers.
+       Drop the WinForms global usings so System.Windows.* (WPF) types win; the files that need
+       WinForms/Drawing name those namespaces explicitly. -->
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
