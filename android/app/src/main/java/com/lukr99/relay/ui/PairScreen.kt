@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,9 +53,10 @@ fun PairScreen(
     onOpenSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    var host by remember { mutableStateOf(initialHost) }
-    var port by remember { mutableStateOf(if (initialPort > 0) initialPort.toString() else "8731") }
-    var token by remember { mutableStateOf(initialToken) }
+    // Saveable, so what the user typed survives a trip to Settings (App keeps this screen's state).
+    var host by rememberSaveable { mutableStateOf(initialHost) }
+    var port by rememberSaveable { mutableStateOf(if (initialPort > 0) initialPort.toString() else "8731") }
+    var token by rememberSaveable { mutableStateOf(initialToken) }
     var scanError by remember { mutableStateOf<String?>(null) }
     var usbSearching by remember { mutableStateOf(false) }
     var usbError by remember { mutableStateOf<String?>(null) }

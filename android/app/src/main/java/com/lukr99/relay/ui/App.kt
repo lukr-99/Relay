@@ -13,6 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,6 +33,8 @@ fun App(vm: DeckViewModel) {
     val presets by vm.client.presets.collectAsStateWithLifecycle()
 
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    // Keeps the pair screen's typed host, port and token while Settings is open.
+    val screens = rememberSaveableStateHolder()
 
     // On launch, quietly check GitHub for a newer app APK. A toast points to Settings › Updates.
     val context = LocalContext.current
@@ -83,18 +86,20 @@ fun App(vm: DeckViewModel) {
                     vm.startDiscovery()
                     onDispose { vm.stopDiscovery() }
                 }
-                PairScreen(
-                    state = state,
-                    initialHost = vm.savedHost,
-                    initialPort = vm.savedPort,
-                    initialToken = vm.savedToken,
-                    discovered = discovered,
-                    savedAgentId = vm.savedAgentId,
-                    savedToken = vm.savedToken,
-                    onConnect = vm::connect,
-                    onConnectUsb = vm::connectOverUsb,
-                    onOpenSettings = { showSettings = true },
-                )
+                screens.SaveableStateProvider("pair") {
+                    PairScreen(
+                        state = state,
+                        initialHost = vm.savedHost,
+                        initialPort = vm.savedPort,
+                        initialToken = vm.savedToken,
+                        discovered = discovered,
+                        savedAgentId = vm.savedAgentId,
+                        savedToken = vm.savedToken,
+                        onConnect = vm::connect,
+                        onConnectUsb = vm::connectOverUsb,
+                        onOpenSettings = { showSettings = true },
+                    )
+                }
             }
         }
     }
