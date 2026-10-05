@@ -8,7 +8,7 @@
     <RootNamespace>Relay.Agent</RootNamespace>
     <AssemblyName>Relay.Agent</AssemblyName>
     <ApplicationIcon>Relay.ico</ApplicationIcon>
-    <VersionPrefix>0.10.0</VersionPrefix>
+    <VersionPrefix>0.10.1</VersionPrefix>
     <!-- Debug/test builds carry a "-dev" pre-release suffix (e.g. 0.7.0-dev) so a build run for
          testing is never mistaken for a shipped release, and the auto-updater never treats a local
          build as the installed release. Release builds ship the clean version. -->
@@ -28,8 +28,8 @@
     <PackageReference Include="Makaretu.Dns.Multicast" Version="0.27.0" />
     <!-- Self-update service and the tray kit (tray icon, menu, theme, dialogs, settings page),
          from dotnetlib's GitHub Packages feed (see nuget.config). -->
-    <PackageReference Include="DotNetLib.Core" Version="0.4.0" />
-    <PackageReference Include="DotNetLib.Tray" Version="0.4.0" />
+    <PackageReference Include="DotNetLib.Core" Version="0.4.1" />
+    <PackageReference Include="DotNetLib.Tray" Version="0.4.1" />
   </ItemGroup>
 
   <!-- This is a WPF app that also uses WinForms for screen capture and the color and folder pickers.

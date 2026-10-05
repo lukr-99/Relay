@@ -3,6 +3,20 @@
 Things that went wrong in Relay and took longer to find than to fix. Newest first. Pitfalls that can
 hit other repositories are also in CodePrint's `docs/pitfalls/`.
 
+## The agent crashes when its tray icon goes back to an earlier color
+
+- Symptom: agent 0.10.0 vanished from the tray right after a phone connected and dropped. The
+  Application event log (.NET Runtime, event 1026) shows `System.ObjectDisposedException: Cannot
+  access a disposed object. Object name: 'Icon'.` at `H.NotifyIcon.TaskbarIcon.UpdateIcon`, called
+  from `DotNetLib.Tray.TrayIconHost.SetIcon`. The agent's own log just stops, with no error.
+- Cause: H.NotifyIcon disposes the old `Icon` whenever a new one is set. `TrayIconHost` cached one
+  `Icon` per image and set it directly, so going grey, violet, then grey again handed it the grey icon
+  it had already disposed.
+- Fix: dotnetlib 0.4.1 sets a clone of the cached icon (lukr-99/dotnetlib#8). Relay takes 0.4.1 in
+  agent 0.10.1.
+- Closed off by: `TrayIconHostTests.SetIcon_CanGoBackToAnIconShownBefore` in dotnetlib.
+- Seen: 2026-10-05, agent 0.10.0.
+
 ## The phone can't reach the agent because the firewall blocks the Private profile
 
 - Symptom: the phone stays on "Connecting..." or "The PC didn't answer", while the agent log shows

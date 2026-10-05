@@ -40,10 +40,13 @@ public sealed class AppConfig
     /// <summary>The look: System (follows Windows), Light or Dark.</summary>
     public TrayThemeMode Theme { get; set; }
 
-    /// <summary>Persists the mutable state fields (token, port, script toggle, theme) back to disk.</summary>
+    /// <summary>Where the main window was last, so it opens there again. Null until it has been shown.</summary>
+    public WindowPlacement? Window { get; set; }
+
+    /// <summary>Persists the mutable state fields (token, port, script toggle, theme, window) back to disk.</summary>
     public void PersistState()
     {
-        var s = new AgentState { AgentId = AgentId, Token = NextToken ?? Token, Port = Port, ScriptEnabled = ScriptEnabled, Theme = Theme.ToString() };
+        var s = new AgentState { AgentId = AgentId, Token = NextToken ?? Token, Port = Port, ScriptEnabled = ScriptEnabled, Theme = Theme.ToString(), Window = Window };
         try { File.WriteAllText(StatePath, System.Text.Json.JsonSerializer.Serialize(s)); } catch { }
     }
 
@@ -66,6 +69,7 @@ public sealed class AppConfig
             Token = state.Token,
             AgentId = state.AgentId,
             ScriptEnabled = state.ScriptEnabled,
+            Window = state.Window,
             Theme = Enum.TryParse<TrayThemeMode>(state.Theme, ignoreCase: true, out var theme) ? theme : TrayThemeMode.System,
         };
     }
@@ -87,6 +91,7 @@ public sealed class AgentState
     public int Port { get; set; } = 8731;
     public bool ScriptEnabled { get; set; }
     public string? Theme { get; set; }
+    public WindowPlacement? Window { get; set; }
 
     public static AgentState LoadOrCreate(string path)
     {
@@ -105,3 +110,6 @@ public sealed class AgentState
         return fresh;
     }
 }
+
+/// <summary>The main window's normal bounds in device-independent pixels, and whether it was maximized.</summary>
+public sealed record WindowPlacement(double Left, double Top, double Width, double Height, bool Maximized);
