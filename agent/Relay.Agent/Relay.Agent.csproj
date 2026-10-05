@@ -28,8 +28,8 @@
     <PackageReference Include="Makaretu.Dns.Multicast" Version="0.27.0" />
     <!-- Self-update service and the tray kit (tray icon, menu, theme, dialogs, settings page),
          from dotnetlib's GitHub Packages feed (see nuget.config). -->
-    <PackageReference Include="DotNetLib.Core" Version="0.4.0" />
-    <PackageReference Include="DotNetLib.Tray" Version="0.4.0" />
+    <PackageReference Include="DotNetLib.Core" Version="0.4.1" />
+    <PackageReference Include="DotNetLib.Tray" Version="0.4.1" />
   </ItemGroup>
 
   <!-- This is a WPF app that also uses WinForms for screen capture and the color and folder pickers.
