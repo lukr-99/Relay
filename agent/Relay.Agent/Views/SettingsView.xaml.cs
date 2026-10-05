@@ -3,6 +3,9 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using DotNetLib.Core.Updating;
+using DotNetLib.Tray;
+using Microsoft.Win32;
 using Relay.Agent.Layout;
 
 namespace Relay.Agent.Views;
@@ -10,156 +13,177 @@ namespace Relay.Agent.Views;
 public partial class SettingsView : UserControl
 {
     private readonly AppServices _svc;
+    private ReleaseInfo? _pendingUpdate;
+    private bool _loading;
 
     public SettingsView(AppServices svc)
     {
         InitializeComponent();
         _svc = svc;
-        NameLine.Text = $"Device name   {svc.Config.DeviceName}";
-        PortLine.Text = $"Port          {svc.Config.Port}";
-        AboutLine.Text = $"Relay {AppInfo.Version} — an Android phone as a Stream Deck for Windows.";
-        UpdateLine.Text = $"You're on v{AppInfo.Version}.";
-        UpdateScriptToggle();
+
+        _loading = true;
+        ThemeRow.SelectedItem = svc.Config.Theme.ToString();
+        ScriptRow.IsOn = svc.Config.ScriptEnabled;
+        _loading = false;
+
+        NameRow.Value = svc.Config.DeviceName;
+        AddressRow.Value = $"{Pairing.Pairing.LocalIpv4()}:{svc.Config.Port}";
+        VersionRow.Value = AppInfo.Version;
+        RegenRow.PrepareConfirm = svc.Theme.Attach;
+
+        // The tray menu can change the theme too, so the row follows it.
+        svc.Theme.Applied += (_, _) =>
+        {
+            _loading = true;
+            ThemeRow.SelectedItem = svc.Theme.Mode.ToString();
+            _loading = false;
+        };
     }
 
-    private void UpdateScriptToggle()
+    /// <summary>Scrolls to a section and lights it up, for deep links such as an update notice.</summary>
+    public void JumpTo(string sectionId) => Page.JumpTo(sectionId);
+
+    private void Theme_Changed(object? sender, object option)
     {
-        var on = _svc.Config.ScriptEnabled;
-        ScriptToggle.Content = on ? "Run-command: ON" : "Run-command: OFF";
-        ScriptToggle.Style = (Style)FindResource(on ? "AccentButton" : "DangerButton");
+        if (_loading || !Enum.TryParse<TrayThemeMode>(option as string, out var mode)) return;
+        _svc.SetTheme(mode);
     }
 
-    private void ScriptToggle_Click(object sender, RoutedEventArgs e)
+    private void Script_Toggled(object? sender, bool on)
     {
-        _svc.Config.ScriptEnabled = !_svc.Config.ScriptEnabled;
+        if (_loading) return;
+        _svc.Config.ScriptEnabled = on;
         _svc.Config.PersistState();
-        UpdateScriptToggle();
     }
 
-    private void AddMicForge_Click(object sender, RoutedEventArgs e)
+    private void AddMicForge_Click(object sender, RoutedEventArgs e) =>
+        AddPreset(MicForgeRow, "MicForge", PresetTemplates.MicForge());
+
+    private void AddCoding_Click(object sender, RoutedEventArgs e) =>
+        AddPreset(CodingRow, "Coding", PresetTemplates.Coding());
+
+    private void AddPreset(ButtonRow row, string baseName, DeckLayout layout)
     {
-        var name = "MicForge";
-        for (int n = 2; _svc.Layout.Exists(name); n++) name = $"MicForge {n}";
-        if (!_svc.Layout.Create(name, PresetTemplates.MicForge()))
-        { MessageBox.Show("Couldn't add the MicForge preset.", "Relay"); return; }
-        _svc.Layout.SetActive(name);   // becomes active + pushed; the Presets/Deck tabs pick it up
-        MessageBox.Show($"Added the MicForge preset “{name}” and made it active.", "Relay");
-    }
+        var name = baseName;
+        for (int n = 2; _svc.Layout.Exists(name); n++) name = $"{baseName} {n}";
+        if (!_svc.Layout.Create(name, layout))
+        {
+            row.ShowResult($"Couldn't add the {baseName} preset.", isError: true);
+            return;
+        }
 
-    private void AddCoding_Click(object sender, RoutedEventArgs e)
-    {
-        var name = "Coding";
-        for (int n = 2; _svc.Layout.Exists(name); n++) name = $"Coding {n}";
-        if (!_svc.Layout.Create(name, PresetTemplates.Coding()))
-        { MessageBox.Show("Couldn't add the Coding preset.", "Relay"); return; }
-        _svc.Layout.SetActive(name);
-        MessageBox.Show($"Added the Coding preset “{name}” and made it active.", "Relay");
+        _svc.Layout.SetActive(name);   // becomes active and is pushed; the Presets and Deck tabs pick it up
+        row.ShowResult($"Added “{name}” and made it active.");
     }
-
-    private DotNetLib.Core.Updating.ReleaseInfo? _pendingUpdate;
 
     private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
     {
-        CheckUpdateBtn.IsEnabled = false;
-        UpdateLine.Text = "Checking…";
-        var info = await _svc.Updater.CheckForUpdateAsync();
-        CheckUpdateBtn.IsEnabled = true;
-        _pendingUpdate = info;
-        if (info is null)
+        CheckRow.IsBusy = true;
+        try
         {
-            UpdateLine.Text = $"You're up to date (v{AppInfo.Version}).";
-            InstallUpdateBtn.Visibility = Visibility.Collapsed;
+            _pendingUpdate = await _svc.Updater.CheckForUpdateAsync();
+        }
+        catch (Exception ex)
+        {
+            _svc.Log.Error("update check failed.", ex);
+            CheckRow.ShowResult("Couldn't reach GitHub. Try again later.", isError: true);
+            return;
+        }
+        finally
+        {
+            CheckRow.IsBusy = false;
+        }
+
+        if (_pendingUpdate is null)
+        {
+            InstallRow.Visibility = Visibility.Collapsed;
+            CheckRow.ShowResult($"You have the latest version ({AppInfo.Version}).");
         }
         else
         {
-            UpdateLine.Text = $"Update available: v{info.Version} (you're on v{AppInfo.Version}).";
-            InstallUpdateBtn.Visibility = Visibility.Visible;
+            InstallRow.Hint = $"Version {_pendingUpdate.Version} is ready. Relay closes and opens again.";
+            InstallRow.Visibility = Visibility.Visible;
+            CheckRow.ShowResult($"Version {_pendingUpdate.Version} is available.");
         }
     }
 
     private async void InstallUpdate_Click(object sender, RoutedEventArgs e)
     {
         if (_pendingUpdate is not { } info) return;
-        InstallUpdateBtn.IsEnabled = false;
-        UpdateLine.Text = $"Downloading v{info.Version}…";
+        InstallRow.IsBusy = true;
         try
         {
             await _svc.Updater.DownloadAndLaunchAsync(info, "/SILENT /SUPPRESSMSGBOXES /NORESTART");
-            MessageBox.Show("Installing the update — Relay will close and reopen.", "Relay");
             App.QuitForUpdate();
         }
         catch (Exception ex)
         {
-            InstallUpdateBtn.IsEnabled = true;
-            UpdateLine.Text = "Update failed to download. Try again, or grab it from GitHub Releases.";
+            InstallRow.IsBusy = false;
+            InstallRow.ShowResult("The download failed. Try again, or get it from the release notes.", isError: true);
             _svc.Log.Error("update install failed.", ex);
         }
     }
 
-    private void OpenData_Click(object sender, RoutedEventArgs e)
-        => Open(_svc.Config.DataDir);
-
-    private void OpenLog_Click(object sender, RoutedEventArgs e)
-        => Open(_svc.Config.LogPath);
-
-    private void Repo_Click(object sender, RoutedEventArgs e)
-        => Open("https://github.com/lukr-99/Relay");
-
     private void Export_Click(object sender, RoutedEventArgs e)
     {
-        using var d = new System.Windows.Forms.SaveFileDialog
-        {
-            Filter = "Relay deck (*.json)|*.json", FileName = "relay-deck.json",
-        };
-        if (d.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+        var d = new SaveFileDialog { Filter = "Relay deck (*.json)|*.json", FileName = "relay-deck.json" };
+        if (d.ShowDialog(Window.GetWindow(this)) != true) return;
         try
         {
             File.WriteAllText(d.FileName, JsonSerializer.Serialize(_svc.Layout.Current, LayoutStore.Json));
+            ExportRow.ShowResult($"Saved to {Path.GetFileName(d.FileName)}.");
         }
-        catch (Exception ex) { MessageBox.Show("Export failed: " + ex.Message, "Relay"); }
+        catch (Exception ex) { ExportRow.ShowResult("Export failed: " + ex.Message, isError: true); }
     }
 
     private void Import_Click(object sender, RoutedEventArgs e)
     {
-        using var d = new System.Windows.Forms.OpenFileDialog { Filter = "Relay deck (*.json)|*.json" };
-        if (d.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+        var d = new OpenFileDialog { Filter = "Relay deck (*.json)|*.json" };
+        if (d.ShowDialog(Window.GetWindow(this)) != true) return;
         try
         {
             var layout = JsonSerializer.Deserialize<DeckLayout>(File.ReadAllText(d.FileName), LayoutStore.Json);
             if (layout is null || layout.Pages.Count == 0)
             {
-                MessageBox.Show("That file isn't a valid deck.", "Relay");
+                ImportRow.ShowResult("That file isn't a valid deck.", isError: true);
                 return;
             }
             _svc.Layout.Save(layout);
-            MessageBox.Show("Deck imported and pushed to connected phones.", "Relay");
+            ImportRow.ShowResult("Imported and sent to connected phones.");
         }
-        catch (Exception ex) { MessageBox.Show("Import failed: " + ex.Message, "Relay"); }
+        catch (Exception ex) { ImportRow.ShowResult("Import failed: " + ex.Message, isError: true); }
     }
 
+    // The DangerRow has already asked; this runs only when the user chose Regenerate.
     private void Regen_Click(object sender, RoutedEventArgs e)
     {
-        var ok = MessageBox.Show(
-            "Regenerate the pairing token? Every paired phone will need to re-pair after you restart Relay.",
-            "Relay", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
-        if (ok != MessageBoxResult.OK) return;
-
+        // The new token takes effect on the next start, so the running config keeps the old one.
         var state = new AgentState
         {
             AgentId = _svc.Config.AgentId,
             Port = _svc.Config.Port,
             Token = AppConfig.NewToken(),
+            ScriptEnabled = _svc.Config.ScriptEnabled,
+            Theme = _svc.Config.Theme.ToString(),
         };
         try
         {
             File.WriteAllText(_svc.Config.StatePath, JsonSerializer.Serialize(state));
-            MessageBox.Show("New token saved. Restart Relay and re-pair your phone.", "Relay");
+            RegenRow.ShowResult("New token saved. Restart Relay and pair your phones again.");
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Couldn't save: " + ex.Message, "Relay");
+            RegenRow.ShowResult("Couldn't save: " + ex.Message, isError: true);
         }
     }
+
+    private void OpenData_Click(object sender, RoutedEventArgs e) => Open(_svc.Config.DataDir);
+
+    private void OpenLog_Click(object sender, RoutedEventArgs e) => Open(_svc.Config.LogPath);
+
+    private void Releases_Click(object sender, RoutedEventArgs e) => Open("https://github.com/lukr-99/Relay/releases");
+
+    private void Repo_Click(object sender, RoutedEventArgs e) => Open("https://github.com/lukr-99/Relay");
 
     private static void Open(string path)
     {
