@@ -158,23 +158,9 @@ public partial class SettingsView : UserControl
     private void Regen_Click(object sender, RoutedEventArgs e)
     {
         // The new token takes effect on the next start, so the running config keeps the old one.
-        var state = new AgentState
-        {
-            AgentId = _svc.Config.AgentId,
-            Port = _svc.Config.Port,
-            Token = AppConfig.NewToken(),
-            ScriptEnabled = _svc.Config.ScriptEnabled,
-            Theme = _svc.Config.Theme.ToString(),
-        };
-        try
-        {
-            File.WriteAllText(_svc.Config.StatePath, JsonSerializer.Serialize(state));
-            RegenRow.ShowResult("New token saved. Restart Relay and pair your phones again.");
-        }
-        catch (Exception ex)
-        {
-            RegenRow.ShowResult("Couldn't save: " + ex.Message, isError: true);
-        }
+        _svc.Config.NextToken = AppConfig.NewToken();
+        _svc.Config.PersistState();
+        RegenRow.ShowResult("New token saved. Restart Relay and pair your phones again.");
     }
 
     private void OpenData_Click(object sender, RoutedEventArgs e) => Open(_svc.Config.DataDir);

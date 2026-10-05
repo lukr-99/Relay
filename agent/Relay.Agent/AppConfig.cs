@@ -30,13 +30,20 @@ public sealed class AppConfig
     /// <summary>Whether the Script (run-command) provider is allowed to execute. Off by default.</summary>
     public bool ScriptEnabled { get; set; }
 
+    /// <summary>
+    /// A regenerated token that takes over on the next start. The running agent keeps
+    /// <see cref="Token"/> until then, and every save writes this one, so a later save can't put
+    /// the old token back.
+    /// </summary>
+    public string? NextToken { get; set; }
+
     /// <summary>The look: System (follows Windows), Light or Dark.</summary>
     public TrayThemeMode Theme { get; set; }
 
     /// <summary>Persists the mutable state fields (token, port, script toggle, theme) back to disk.</summary>
     public void PersistState()
     {
-        var s = new AgentState { AgentId = AgentId, Token = Token, Port = Port, ScriptEnabled = ScriptEnabled, Theme = Theme.ToString() };
+        var s = new AgentState { AgentId = AgentId, Token = NextToken ?? Token, Port = Port, ScriptEnabled = ScriptEnabled, Theme = Theme.ToString() };
         try { File.WriteAllText(StatePath, System.Text.Json.JsonSerializer.Serialize(s)); } catch { }
     }
 
