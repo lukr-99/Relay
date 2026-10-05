@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import com.lukr99.relay.net.AppRelease
 import com.lukr99.relay.net.AppUpdater
 import com.lukr99.relay.net.ConnState
+import com.lukr99.relay.settings.ActiveLink
+import com.lukr99.relay.settings.ConnectionLink
 import com.lukr99.relay.settings.PairingStore
 import kotlinx.coroutines.launch
 
@@ -65,6 +67,9 @@ fun SettingsScreen(
     agentName: String?,
     host: String,
     port: Int,
+    link: ConnectionLink,
+    activeLink: ActiveLink?,
+    onLink: (ConnectionLink) -> Unit,
     onDisconnect: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -90,7 +95,7 @@ fun SettingsScreen(
                 Modifier.widthIn(max = 760.dp).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                ConnectionSection(state, agentName, host, port, onDisconnect)
+                ConnectionSection(state, agentName, host, port, link, activeLink, onLink, onDisconnect)
                 UpdatesSection()
                 AboutSection()
             }
@@ -104,6 +109,9 @@ private fun ConnectionSection(
     agentName: String?,
     host: String,
     port: Int,
+    link: ConnectionLink,
+    activeLink: ActiveLink?,
+    onLink: (ConnectionLink) -> Unit,
     onDisconnect: () -> Unit,
 ) {
     val connected = state is ConnState.Connected
@@ -111,16 +119,23 @@ private fun ConnectionSection(
         InfoRow(
             "Status",
             when (state) {
-                ConnState.Connected -> "Connected"
+                ConnState.Connected -> "Connected over ${activeLink?.label ?: "Wi-Fi"}"
                 ConnState.Connecting -> "Connecting..."
-                else -> "Not connected"
+                is ConnState.Retrying -> "Retrying. ${state.reason}"
+                is ConnState.Failed -> state.reason
+                ConnState.Disconnected -> "Not connected"
             },
         )
+        RowDivider()
+        Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+            Text("Connect via", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 8.dp))
+            LinkPicker(link, onLink)
+        }
         if (connected) {
             RowDivider()
             InfoRow("Agent", agentName ?: "Unknown")
             RowDivider()
-            InfoRow("Address", "$host:$port")
+            InfoRow("Network address", "$host:$port")
             RowDivider()
             InfoRow(
                 "Deck",
@@ -245,75 +260,4 @@ private fun AboutSection() {
         RowDivider()
         LinkRow("Project page", "Source code and the PC app.", REPO_URL)
     }
-}
-
-/** One card per section: title, a one-line description, then rows split by thin lines. */
-@Composable
-private fun SettingsCard(title: String, description: String, content: @Composable ColumnScope.() -> Unit) {
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-            content()
-        }
-    }
-}
-
-@Composable
-private fun SettingsRow(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
-    Row(
-        modifier.fillMaxWidth().heightIn(min = 56.dp).padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        content = content,
-    )
-}
-
-/** A read-only value, as selectable text. */
-@Composable
-private fun InfoRow(label: String, value: String) {
-    SettingsRow {
-        Column(Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.bodyLarge)
-            SelectionContainer {
-                Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-/** Opens a web page. The whole row is the target. */
-@Composable
-private fun LinkRow(label: String, hint: String, url: String) {
-    val context = LocalContext.current
-    SettingsRow(
-        Modifier.clickable {
-            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-        },
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.bodyLarge)
-            Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Text("↗", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-    }
-}
-
-@Composable
-private fun RowDivider() {
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }

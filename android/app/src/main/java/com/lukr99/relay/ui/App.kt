@@ -31,6 +31,10 @@ fun App(vm: DeckViewModel) {
     val buttonLevels by vm.client.levels.collectAsStateWithLifecycle()
     val sliderValues by vm.client.sliderValues.collectAsStateWithLifecycle()
     val presets by vm.client.presets.collectAsStateWithLifecycle()
+    val link by vm.link.collectAsStateWithLifecycle()
+    val activeLink by vm.activeLink.collectAsStateWithLifecycle()
+    val linkError by vm.linkError.collectAsStateWithLifecycle()
+    val searchingCable by vm.searchingCable.collectAsStateWithLifecycle()
 
     var showSettings by rememberSaveable { mutableStateOf(false) }
     // Keeps the pair screen's typed host, port and token while Settings is open.
@@ -60,6 +64,9 @@ fun App(vm: DeckViewModel) {
                     agentName = agentName,
                     host = vm.savedHost,
                     port = vm.savedPort,
+                    link = link,
+                    activeLink = activeLink,
+                    onLink = vm::setLink,
                     onDisconnect = { vm.disconnect(); showSettings = false },
                     onBack = { showSettings = false },
                 )
@@ -87,14 +94,24 @@ fun App(vm: DeckViewModel) {
                     onDispose { vm.stopDiscovery() }
                 }
                 screens.SaveableStateProvider("pair") {
-                    PairScreen(
+                    ConnectScreen(
                         state = state,
+                        target = vm.client.target.ifBlank { vm.savedHost.takeIf { it.isNotBlank() }?.let { "$it:${vm.savedPort}" } ?: "" },
+                        isPaired = vm.isPaired,
+                        link = link,
+                        activeLink = activeLink,
+                        linkError = linkError,
+                        searchingCable = searchingCable,
                         initialHost = vm.savedHost,
                         initialPort = vm.savedPort,
                         initialToken = vm.savedToken,
                         discovered = discovered,
                         savedAgentId = vm.savedAgentId,
                         savedToken = vm.savedToken,
+                        onLink = vm::setLink,
+                        onReconnect = vm::reconnect,
+                        onRetryNow = vm.client::retryNow,
+                        onCancel = vm::cancel,
                         onConnect = vm::connect,
                         onConnectUsb = vm::connectOverUsb,
                         onOpenSettings = { showSettings = true },

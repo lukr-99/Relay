@@ -36,7 +36,27 @@ sealed interface ConnState {
     data object Disconnected : ConnState
     data object Connecting : ConnState
     data object Connected : ConnState
+    /** The last try failed and another one is waiting. [retryAtMs] is the wall clock time it starts. */
+    data class Retrying(val attempt: Int, val reason: String, val retryAtMs: Long) : ConnState
     data class Failed(val reason: String) : ConnState
+}
+
+/** Plain words for a socket error, so the connection page can say what went wrong. */
+internal fun describe(t: Throwable): String {
+    val msg = t.message.orEmpty()
+    return when {
+        t is java.net.SocketTimeoutException || msg.contains("timeout", ignoreCase = true) ->
+            "The PC didn't answer. Check that Relay runs on it and that its firewall lets Relay in."
+        t is java.net.ConnectException || msg.contains("ECONNREFUSED") ->
+            "The PC refused the connection. Check that Relay is running."
+        t is java.net.NoRouteToHostException || msg.contains("EHOSTUNREACH") || msg.contains("ENETUNREACH") ->
+            "The PC can't be reached from this network."
+        t is java.net.UnknownHostException -> "That address doesn't exist."
+        msg.contains("fingerprint mismatch") ->
+            "This PC's certificate changed. Scan its QR code again to pair."
+        msg.isNotBlank() -> msg
+        else -> "The connection failed."
+    }
 }
 
 /** The agent's deck presets and which one is active. Drives the phone-side preset picker. */
@@ -133,6 +153,8 @@ class DeckClient {
         val ctx = SSLContext.getInstance("TLS")
         ctx.init(null, arrayOf<TrustManager>(tm), SecureRandom())
         return OkHttpClient.Builder()
+            // Fail fast on a dead address, so the page can say why instead of spinning.
+            .connectTimeout(6, TimeUnit.SECONDS)
             .pingInterval(20, TimeUnit.SECONDS)
             .sslSocketFactory(ctx.socketFactory, tm)
             .hostnameVerifier { _, _ -> true } // self-signed; security is the pinned fingerprint
@@ -154,16 +176,27 @@ class DeckClient {
     fun selectPreset(name: String) { socket?.send(Rpc.presetSelect(name)) }
     fun setSlider(id: String, value: Float) { socket?.send(Rpc.sliderSet(id, value)) }
 
-    private fun scheduleReconnect() {
+    private fun scheduleReconnect(reason: String) {
         if (!wantConnected || reconnectJob?.isActive == true) return
         attempt++
         val delayMs = min(30_000L, 1_000L * (1L shl min(attempt, 5)))  // 2s,4s,8s,16s,32s→cap 30s
+        _state.value = ConnState.Retrying(attempt, reason, System.currentTimeMillis() + delayMs)
         reconnectJob = scope.launch {
-            _state.value = ConnState.Connecting
             delay(delayMs)
             if (wantConnected) open()
         }
     }
+
+    /** Tries again now instead of waiting for the next retry. */
+    fun retryNow() {
+        if (host.isBlank()) return
+        wantConnected = true
+        reconnectJob?.cancel()
+        open()
+    }
+
+    /** The address the client is connecting or connected to. */
+    val target: String get() = if (host.isBlank()) "" else "$host:$port"
 
     private inner class Listener : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -239,15 +272,15 @@ class DeckClient {
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             if (response?.code == 401) {
                 wantConnected = false
-                _state.value = ConnState.Failed("Rejected: wrong token")
+                _state.value = ConnState.Failed("The PC rejected the token. Scan its QR code again to pair.")
                 return
             }
-            if (wantConnected) scheduleReconnect()
-            else _state.value = ConnState.Failed(t.message ?: "connection failed")
+            if (wantConnected) scheduleReconnect(describe(t))
+            else _state.value = ConnState.Failed(describe(t))
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-            if (wantConnected) scheduleReconnect()
+            if (wantConnected) scheduleReconnect("The PC closed the connection.")
         }
     }
 }
