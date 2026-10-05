@@ -10,9 +10,8 @@ phone — the phone only knows button IDs and how to render a layout the PC push
 
 ## Stack
 
-- **Agent (PC):** C# / .NET 10 **WPF** app (hand-rolled dark theme, MicForge-style) — one window
-  with a nav rail (Deck editor / Devices / Settings) that minimises to a WinForms `NotifyIcon`
-  tray. WebSocket server via **ASP.NET Core minimal hosting (Kestrel)** — currently `ws://`; it
+- **Agent (PC):** C# / .NET 10 **WPF** app (light and dark themes from the `DotNetLib.Tray` kit): one window
+  with a nav rail (Deck editor / Devices / Settings) that minimises to the kit's tray icon. WebSocket server via **ASP.NET Core minimal hosting (Kestrel)** — currently `ws://`; it
   will terminate WSS later. Input via `SendInput` P/Invoke. mDNS advertising is stubbed for now.
 - **App (Android):** Kotlin + Jetpack Compose (`LazyVerticalGrid`), **OkHttp** WebSocket,
   **NsdManager** (built-in DNS-SD) for discovery, CameraX + ML Kit Barcode for QR pairing.
