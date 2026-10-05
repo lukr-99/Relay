@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -47,6 +49,7 @@ fun PairScreen(
     savedToken: String = "",
     onConnect: (host: String, port: Int, token: String, fp: String) -> Unit,
     onConnectUsb: (port: Int, token: String, onResult: (String?) -> Unit) -> Unit = { _, _, cb -> cb(null) },
+    onOpenSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var host by remember { mutableStateOf(initialHost) }
@@ -81,130 +84,141 @@ fun PairScreen(
             .addOnFailureListener { scanError = it.message ?: "Couldn't open the scanner." }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text("Relay", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(4.dp))
-        Text("Pair with your PC", style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(24.dp))
-
-        Button(onClick = { scan() }, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Scan QR code")
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Open Devices on the PC and scan the code.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = {
-                usbError = null
-                if (token.isBlank()) { usbError = "Enter the token first, then tap Connect over USB."; return@Button }
-                usbSearching = true
-                onConnectUsb(port.toIntOrNull() ?: 8731, token.trim()) { peer ->
-                    usbSearching = false
-                    if (peer == null) usbError =
-                        "No USB link found. Turn on USB tethering on the phone (Settings › Connections › Mobile Hotspot and Tethering › USB tethering), then try again."
-                }
-            },
-            enabled = !usbSearching && state !is ConnState.Connecting,
-            modifier = Modifier.fillMaxWidth(),
+    Column(Modifier.fillMaxSize()) {
+        // Top bar: Settings is reachable before any PC is paired (updates, version, about).
+        Row(
+            Modifier.fillMaxWidth().padding(top = 8.dp, end = 4.dp),
+            horizontalArrangement = Arrangement.End,
         ) {
-            Icon(Icons.Filled.Usb, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(if (usbSearching) "Searching for PC…" else "Connect over USB cable")
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            }
         }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Plug in USB, enable USB tethering, then tap. Needs the token above.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (usbError != null) {
-            Spacer(Modifier.height(8.dp))
-            Text(usbError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-        }
-
-        if (discovered.isNotEmpty()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("Relay", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(4.dp))
+            Text("Pair with your PC", style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(24.dp))
-            Text("Found on your network", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            Button(onClick = { scan() }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Scan QR code")
+            }
             Spacer(Modifier.height(8.dp))
-            discovered.forEach { agent ->
-                val known = agent.id.isNotBlank() && agent.id == savedAgentId && savedToken.isNotBlank()
-                Surface(
-                    onClick = {
-                        host = agent.host
-                        port = agent.port.toString()
-                        if (known) onConnect(agent.host, agent.port, savedToken, agent.fp)
-                    },
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+            Text(
+                "Open Devices on the PC and scan the code.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = {
+                    usbError = null
+                    if (token.isBlank()) { usbError = "Enter the token first, then tap Connect over USB."; return@Button }
+                    usbSearching = true
+                    onConnectUsb(port.toIntOrNull() ?: 8731, token.trim()) { peer ->
+                        usbSearching = false
+                        if (peer == null) usbError =
+                            "No USB link found. Turn on USB tethering on the phone (Settings › Connections › Mobile Hotspot and Tethering › USB tethering), then try again."
+                    }
+                },
+                enabled = !usbSearching && state !is ConnState.Connecting,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Filled.Usb, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (usbSearching) "Searching for PC…" else "Connect over USB cable")
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Plug in USB, enable USB tethering, then tap. Needs the token above.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (usbError != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(usbError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+
+            if (discovered.isNotEmpty()) {
+                Spacer(Modifier.height(24.dp))
+                Text("Found on your network", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                discovered.forEach { agent ->
+                    val known = agent.id.isNotBlank() && agent.id == savedAgentId && savedToken.isNotBlank()
+                    Surface(
+                        onClick = {
+                            host = agent.host
+                            port = agent.port.toString()
+                            if (known) onConnect(agent.host, agent.port, savedToken, agent.fp)
+                        },
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     ) {
-                        Column {
-                            Text(agent.displayName, style = MaterialTheme.typography.bodyLarge)
-                            Text("${agent.host}:${agent.port}", style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column {
+                                Text(agent.displayName, style = MaterialTheme.typography.bodyLarge)
+                                Text("${agent.host}:${agent.port}", style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(
+                                if (known) "Reconnect" else "Use",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
-                        Text(
-                            if (known) "Reconnect" else "Use",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
                     }
                 }
             }
-        }
 
-        Spacer(Modifier.height(24.dp))
-        Text("or enter manually", style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(24.dp))
+            Text("or enter manually", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = host, onValueChange = { host = it },
-            label = { Text("Host (PC IP)") }, singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            value = port, onValueChange = { port = it.filter(Char::isDigit) },
-            label = { Text("Port") }, singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            value = token, onValueChange = { token = it },
-            label = { Text("Token") }, singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(20.dp))
-        Button(
-            onClick = { onConnect(host.trim(), port.toIntOrNull() ?: 8731, token.trim(), "") },
-            enabled = host.isNotBlank() && token.isNotBlank() && state !is ConnState.Connecting,
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text(if (state is ConnState.Connecting) "Connecting…" else "Connect") }
+            OutlinedTextField(
+                value = host, onValueChange = { host = it },
+                label = { Text("Host (PC IP)") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = port, onValueChange = { port = it.filter(Char::isDigit) },
+                label = { Text("Port") }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = token, onValueChange = { token = it },
+                label = { Text("Token") }, singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(20.dp))
+            Button(
+                onClick = { onConnect(host.trim(), port.toIntOrNull() ?: 8731, token.trim(), "") },
+                enabled = host.isNotBlank() && token.isNotBlank() && state !is ConnState.Connecting,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(if (state is ConnState.Connecting) "Connecting…" else "Connect") }
 
-        val err = scanError ?: (state as? ConnState.Failed)?.reason
-        if (err != null) {
-            Spacer(Modifier.height(16.dp))
-            Text(err, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            val err = scanError ?: (state as? ConnState.Failed)?.reason
+            if (err != null) {
+                Spacer(Modifier.height(16.dp))
+                Text(err, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 }
