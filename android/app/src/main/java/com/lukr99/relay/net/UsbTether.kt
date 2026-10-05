@@ -22,6 +22,12 @@ object UsbTether {
     private val TetherIface = Regex("^(rndis|usb|ncm)\\d*", RegexOption.IGNORE_CASE)
     private const val ConnectTimeoutMs = 400
 
+    /** Whether a USB tethering interface is up right now (used by the Auto link). */
+    fun isTetherUp(): Boolean = runCatching {
+        NetworkInterface.getNetworkInterfaces().toList()
+            .any { runCatching { it.isUp }.getOrDefault(false) && TetherIface.containsMatchIn(it.name) }
+    }.getOrDefault(false)
+
     /** The PC's tether IP with the agent's [port] open, or null if no USB link / agent is found. */
     suspend fun discoverPeer(port: Int): String? = withContext(Dispatchers.IO) {
         val ifaces = runCatching {

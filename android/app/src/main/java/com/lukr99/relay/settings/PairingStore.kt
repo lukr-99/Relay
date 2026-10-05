@@ -18,6 +18,27 @@ class PairingStore(context: Context) {
         get() = prefs.getString("token", "") ?: ""
         set(v) = prefs.edit().putString("token", v).apply()
 
+    /**
+     * The PC's address on the network. [host] is whatever the last connection used, which is the
+     * USB tether address after a cable connect, so switching back to Wi-Fi needs this one.
+     */
+    var lanHost: String
+        get() = prefs.getString("lanHost", "") ?: ""
+        set(v) = prefs.edit().putString("lanHost", v).apply()
+
+    /**
+     * Versions before 0.7.0 kept one address. Take it as the network address once, before a cable
+     * connect can replace it.
+     */
+    fun migrateLanHost() {
+        if (!prefs.contains("lanHost") && host.isNotBlank()) lanHost = host
+    }
+
+    /** Wi-Fi, cable, or pick by itself. */
+    var link: ConnectionLink
+        get() = ConnectionLink.parse(prefs.getString("link", null))
+        set(v) = prefs.edit().putString("link", v.name).apply()
+
     /** Pinned SHA-256 fingerprint of the agent's cert (from the QR, or learned on first connect). */
     var fp: String
         get() = prefs.getString("fp", "") ?: ""
