@@ -13,6 +13,7 @@ public partial class MainWindow : Window
     private readonly DevicesView _devices;
     private readonly ProfilesView _profiles;
     private readonly SettingsView _settings;
+    private readonly AboutView _about;
     private readonly DispatcherTimer _statusTimer;
     private readonly DispatcherTimer _placementTimer;
 
@@ -30,6 +31,7 @@ public partial class MainWindow : Window
         _devices = new DevicesView(svc);
         _profiles = new ProfilesView(svc);
         _settings = new SettingsView(svc);
+        _about = new AboutView();
         Host.Content = _deck;
 
         RestorePlacement();
@@ -61,6 +63,7 @@ public partial class MainWindow : Window
     private void NavDevices_Checked(object sender, RoutedEventArgs e) { if (Host != null) { Host.Content = _devices; _devices.Refresh(); } }
     private void NavProfiles_Checked(object sender, RoutedEventArgs e) { if (Host != null) { Host.Content = _profiles; _profiles.Refresh(); } }
     private void NavSettings_Checked(object sender, RoutedEventArgs e) { if (Host != null) Host.Content = _settings; }
+    private void NavAbout_Checked(object sender, RoutedEventArgs e) { if (Host != null) Host.Content = _about; }
 
     /// <summary>
     /// Opens where the window was last, on whichever monitor that was. A spot that is no longer on any

@@ -36,6 +36,8 @@
                                  Content="Profiles" Checked="NavProfiles_Checked"/>
                     <RadioButton x:Name="NavSettings" Style="{StaticResource NavButton}" GroupName="nav"
                                  Content="Settings" Checked="NavSettings_Checked"/>
+                    <RadioButton x:Name="NavAbout" Style="{StaticResource NavButton}" GroupName="nav"
+                                 Content="About" Checked="NavAbout_Checked"/>
                 </StackPanel>
             </DockPanel>
         </Border>
