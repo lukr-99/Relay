@@ -1,8 +1,8 @@
 # Relay
 
 Relay turns an Android phone into a Stream Deck for Windows. The phone shows a grid of buttons.
-Each button runs an action on the PC: a hotkey, an app launch, a media key, a text snippet, an OBS
-scene switch, or a MicForge control such as mute or a preset. Buttons show live state, such as a
+Each button runs an action on the PC: a hotkey, an app launch, a media key, a text snippet, or a MicForge
+control such as mute or a preset. OBS scene switching is planned. Buttons show live state, such as a
 muted mic in red.
 
 The phone is a thin remote. A Windows tray agent is the brain. They talk over your Wi-Fi network
@@ -38,7 +38,7 @@ There is no cloud service and no account.
 - **Windows agent:** Windows 10 or 11, 64-bit. The installer bundles the .NET runtime. To build,
   you need the .NET 10 SDK.
 - **Phone app:** Android 8.0 (API 26) or newer, on the same Wi-Fi network as the PC.
-- **Optional:** OBS Studio 28 or newer, for scene control. MicForge, for mic control.
+- **Optional:** MicForge, for mic control. OBS Studio scene control is planned and not built yet.
 
 ## Quick start
 
