@@ -1,0 +1,38 @@
+# Local (Kiln) CI for Relay. The repository has no GitHub workflow, so this runs the build command from
+# android/README.md ("cd android && ./gradlew assembleDebug") in the Android SDK image.
+# Left out:
+# - the Windows agent (agent/Relay.slnx): it targets net10.0-windows and needs DotNetLib.Core and
+#   DotNetLib.Tray from dotnetlib's private GitHub Packages feed, which needs a read:packages token that no
+#   Kiln secret provides, so it cannot be restored here. Its tests (Relay.Agent.Tests) are net10.0-windows too;
+# - tools/*.ps1, which build the installer and publish releases.
+# Run it with:  kiln run .kiln/workflows/ci.yml --repo .
+name: CI
+
+on:
+  workflow_dispatch:
+
+env:
+  CI: "true"
+
+jobs:
+  android:
+    name: Android debug build
+    runs-on: ubuntu-latest
+    container: ghcr.io/cirruslabs/android-sdk:35
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: android
+    env:
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      # The image has JDK 21. The build compiles for Java 17 (sourceCompatibility, jvmTarget), so that is enough.
+      - name: Build the debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
